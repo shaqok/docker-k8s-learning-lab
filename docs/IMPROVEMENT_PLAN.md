@@ -287,7 +287,7 @@ Sizes: S ≈ a sitting, M ≈ a weekend, L ≈ multiple weekends.
 | Q | **Quick wins** — persist m2/m4 missions · Certify stage in the roadmap · solution reveal in drill labs · `get NAME` fidelity bug | S | ✅ 2026-07-16 |
 | 11 | **Docker engine v2** — build/layers/cache, volumes, networks+DNS, compose, registry | L | ✅ 2026-07-16 — `src/sims/docker/{catalog,engine,build,network,compose,cli}.js`; `dockerSim.js` now a thin facade; `dockerEngine.test.js` |
 | 12 | **Docker Drills (m16)** — 5 live-graded labs on the new engine | M | ✅ 2026-07-16 — `src/data/dockerLabs.js` + `DockerDrills.jsx`; `LabRunner` now sim-agnostic (`createSim` prop); `dockerLabs.test.js` |
-| 13 | **Pod v2** — multi-container, initContainers, sidecars | L | ⏳ |
+| 13 | **Pod v2** — multi-container, initContainers, sidecars | L | ✅ 2026-07-16 — `src/sims/k8s/engine.js` (`containers[]`/`initContainers[]`, live `containerStatuses[]`/`initContainerStatuses[]`, `mainContainer()`), `kubectl.js` fidelity (READY N/M, `describe` Init Containers, `logs`/`exec -c`/`--previous`, multi-container `apply -f`/`set image`); Pod Design lab (m17) — `src/data/podLabs.js` + `PodLabs.jsx`; `podLabs.test.js` |
 | 14 | **Workload kinds** — Job, CronJob, DaemonSet, StatefulSet | M | ⏳ |
 | 15 | **Storage** — PV / PVC / StorageClass / emptyDir / volumeClaimTemplates | M | ⏳ |
 
