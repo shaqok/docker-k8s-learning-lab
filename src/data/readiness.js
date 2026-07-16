@@ -5,6 +5,7 @@ import { CKA_LABS } from './ckaLabs.js';
 import { NET_LABS } from './netLabs.js';
 import { OPS_LABS } from './opsLabs.js';
 import { POD_LABS } from './podLabs.js';
+import { STORAGE_LABS } from './storageLabs.js';
 
 /**
  * Per-exam-domain readiness — pure functions over progress state so the
@@ -32,6 +33,8 @@ export const PRACTICE_SOURCES = [
   { key: 'ops/upgrade', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'upgrade'), done: (p) => (p.opsDone.upgrade || []).length },
   { key: 'ops/etcd', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'etcd'), done: (p) => (p.opsDone.etcd || []).length },
   { key: 'pod/sidecars', cka: null, ckad: 'design', total: labMissions(POD_LABS, 'sidecars'), done: (p) => (p.podDone.sidecars || []).length },
+  { key: 'storage/pvc', cka: 'storage', ckad: null, total: labMissions(STORAGE_LABS, 'pvc'), done: (p) => (p.storageDone.pvc || []).length },
+  { key: 'storage/statefulset', cka: 'storage', ckad: null, total: labMissions(STORAGE_LABS, 'statefulset'), done: (p) => (p.storageDone.statefulset || []).length },
 ];
 
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : null);

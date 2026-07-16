@@ -3608,5 +3608,22 @@ export default {
   "btnHang": "😵 hang",
   "btn503": "🤒 503",
   "btnHeal": "😀 heal"
+ },
+ "m18": {
+  "title": "💾 Storage Drills — PV/PVC/StorageClass",
+  "sub": "A PersistentVolumeClaim only requests storage; a StorageClass provisions it on demand. Bind, mount, write, delete the pod, and watch a replacement pod keep your data — then watch emptyDir NOT survive the same trick. Missions are graded live as you type — no Check button.",
+  "_ncards": 0,
+  "missionsTitle": "Missions — graded live",
+  "docsTitle": "📖 In the real docs (kubernetes.io)",
+  "btnReset": "Reset lab",
+  "btnSolve": "Solve it for me",
+  "solutionTitle": "Reference solution",
+  "solveNote": "Reference solution — PVC binding (static + dynamic), pod-dies-data-survives vs. emptyDir, the PVC-stuck-Pending fault and its fix, and StatefulSet volumeClaimTemplates. Watch the missions tick, then Reset and do it yourself.",
+  "termHead": "exam console — kubectl",
+  "greeting": "Simulated cluster. Edit the YAML in the Manifests pane, then apply it here. Type 'help' for commands.",
+  "panelPvcs": "💾 PersistentVolumeClaims",
+  "panelPvs": "🗄 PersistentVolumes",
+  "panelPods": "📦 Pods",
+  "noneYet": "(none yet)"
  }
 };

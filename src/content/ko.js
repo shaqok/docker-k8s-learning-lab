@@ -3595,5 +3595,22 @@ export default {
   "btnHang": "😵 행",
   "btn503": "🤒 503",
   "btnHeal": "😀 회복"
+ },
+ "m18": {
+  "title": "💾 스토리지 드릴 — PV/PVC/StorageClass",
+  "sub": "PersistentVolumeClaim은 스토리지를 요청만 하고, StorageClass가 필요할 때 프로비저닝합니다. 바인딩하고, 마운트하고, 쓰고, 파드를 지운 뒤 교체된 파드에도 데이터가 남아있는지 확인하세요 — 그다음 emptyDir로 같은 걸 해보면 살아남지 않는 걸 보게 됩니다. 미션은 입력하는 동안 실시간으로 채점됩니다 — Check 버튼이 없습니다.",
+  "_ncards": 0,
+  "missionsTitle": "미션 — 실시간 채점",
+  "docsTitle": "📖 실제 문서에서 찾기 (kubernetes.io)",
+  "btnReset": "랩 초기화",
+  "btnSolve": "풀이 실행하기",
+  "solutionTitle": "모범 답안",
+  "solveNote": "모범 답안 — PVC 바인딩(정적 + 동적), 파드가 죽어도 데이터가 남는 PVC vs. 그렇지 않은 emptyDir, PVC가 Pending에 멈추는 장애와 그 해결법, StatefulSet의 volumeClaimTemplates. 미션이 채점되는 걸 지켜본 뒤, 초기화하고 직접 해 보세요.",
+  "termHead": "시험 콘솔 — kubectl",
+  "greeting": "시뮬레이션 클러스터입니다. Manifests 패널에서 YAML을 편집한 뒤 여기서 apply하세요. 'help'로 명령을 확인하세요.",
+  "panelPvcs": "💾 PersistentVolumeClaim",
+  "panelPvs": "🗄 PersistentVolume",
+  "panelPods": "📦 파드",
+  "noneYet": "(아직 없음)"
  }
 };
