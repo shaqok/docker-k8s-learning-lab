@@ -3587,5 +3587,26 @@ export default {
   "panelImages": "🧊 Images (layers · size)",
   "panelContainers": "📦 Containers",
   "panelInfra": "🧱 Volumes & networks"
+ },
+ "m17": {
+  "title": "🧩 Pod Design — sidecars & initContainers",
+  "sub": "One pod, more than one container. Add a sidecar and watch READY track every container, not just the first; add an initContainer and watch the startup sequence play out before the app ever runs. Missions are graded live as you type — no Check button.",
+  "_ncards": 0,
+  "missionsTitle": "Missions — graded live",
+  "docsTitle": "📖 In the real docs (kubernetes.io)",
+  "btnReset": "Reset lab",
+  "btnSolve": "Solve it for me",
+  "solutionTitle": "Reference solution",
+  "solveNote": "Reference solution — sidecar readiness, the all-containers-ready rule, initContainer sequencing, and logs -c/--previous. Watch the missions tick, then Reset and do it yourself.",
+  "termHead": "exam console — kubectl",
+  "greeting": "Simulated cluster. Edit the YAML in the Manifests pane, then apply it here. Type 'help' for commands.",
+  "panelPods": "🧩 Pods",
+  "panelInit": "init",
+  "panelEndpoints": "🔌 Service endpoints",
+  "ready": "Ready",
+  "notReady": "NotReady",
+  "btnHang": "😵 hang",
+  "btn503": "🤒 503",
+  "btnHeal": "😀 heal"
  }
 };

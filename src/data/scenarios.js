@@ -393,23 +393,22 @@ export const SCENARIOS = [
     ],
     setup(engine) {
       const d = engine.makeDeployment({ name: 'checkout', replicas: 3, image: 'nginx:1.25' });
-      const oldRs = d.sim.rsName;
       seedPods(engine, d, 3);
-      // simulate the bad 14:02 deploy: new revision with a broken image
+      // simulate the bad 14:02 deploy: new revision with a broken image, wedged
+      // mid-rollout (old pods still serving, one new pod stuck) — via the real
+      // ReplicaSet the Deployment controller actually uses, not hand-mutated bookkeeping.
       d.spec.template.spec.containers[0].image = 'chekout-svc:2.0';
-      d.sim.revision = 2;
-      d.sim.rsName = 'checkout-' + rid(9);
-      d.sim.history.push({ rev: 2, image: 'chekout-svc:2.0', at: Date.now() });
+      engine.rotateDeployment(d);
+      const newRs = engine.get('ReplicaSet', 'default', d.sim.rsName);
+      newRs.spec.replicas = 1;
       const stuck = engine.makePod({
-        name: d.sim.rsName + '-' + rid(5), labels: { app: 'checkout' }, image: 'chekout-svc:2.0',
-        owner: 'default/checkout', rsName: d.sim.rsName, nodeName: 'worker-1',
+        name: newRs.metadata.name + '-' + rid(5), labels: { app: 'checkout' }, image: 'chekout-svc:2.0',
+        owner: 'default/checkout', rsName: newRs.metadata.name, nodeName: 'worker-1',
       });
       stuck.status.state = 'ImagePullBackOff';
       stuck.status.phase = 'Pending';
       stuck.status.ready = false;
       engine.addEvent({ type: 'Warning', reason: 'Failed', object: 'Pod/' + stuck.metadata.name, message: 'Failed to pull image "chekout-svc:2.0": repository does not exist or may require authorization' });
-      // the old pods belong to the previous replicaset
-      for (const p of engine.list('Pod').filter((x) => x.sim.owner === 'default/checkout' && x.sim.rsName === oldRs)) p.sim.v2 = false;
     },
     checks: [
       { desc: { en: 'checkout no longer references the broken image', ko: 'checkout이 더 이상 고장 난 이미지를 참조하지 않음' }, test: (e) => { const d = e.get('Deployment', 'default', 'checkout'); return !!d && imageKnown(e.depImage(d)); } },

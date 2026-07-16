@@ -3574,5 +3574,26 @@ export default {
   "panelImages": "🧊 이미지 (레이어 · 크기)",
   "panelContainers": "📦 컨테이너",
   "panelInfra": "🧱 볼륨 & 네트워크"
+ },
+ "m17": {
+  "title": "🧩 파드 설계 — 사이드카 & initContainer",
+  "sub": "파드 하나에 컨테이너 여러 개. 사이드카를 추가하면 READY가 첫 번째 컨테이너만이 아니라 모든 컨테이너를 따라가는 걸 보고, initContainer를 추가하면 앱이 실행되기 전에 시작 순서가 진행되는 걸 지켜보세요. 미션은 입력하는 동안 실시간으로 채점됩니다 — Check 버튼이 없습니다.",
+  "_ncards": 0,
+  "missionsTitle": "미션 — 실시간 채점",
+  "docsTitle": "📖 실제 문서에서 찾기 (kubernetes.io)",
+  "btnReset": "랩 초기화",
+  "btnSolve": "풀이 실행하기",
+  "solutionTitle": "모범 답안",
+  "solveNote": "모범 답안 — 사이드카 준비성, '모든 컨테이너가 준비되어야 함' 규칙, initContainer 순서, logs -c/--previous. 미션이 채점되는 걸 지켜본 뒤, 초기화하고 직접 해 보세요.",
+  "termHead": "시험 콘솔 — kubectl",
+  "greeting": "시뮬레이션 클러스터입니다. Manifests 패널에서 YAML을 편집한 뒤 여기서 apply하세요. 'help'로 명령을 확인하세요.",
+  "panelPods": "🧩 파드",
+  "panelInit": "init",
+  "panelEndpoints": "🔌 Service 엔드포인트",
+  "ready": "Ready",
+  "notReady": "NotReady",
+  "btnHang": "😵 행",
+  "btn503": "🤒 503",
+  "btnHeal": "😀 회복"
  }
 };

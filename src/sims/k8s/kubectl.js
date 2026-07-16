@@ -8,8 +8,32 @@ import { resolveHttp } from './routing.js';
 
 /* ---------- CLI parsing ---------- */
 
-const ALIAS = { '-n': 'namespace', '--namespace': 'namespace', '-l': 'selector', '--selector': 'selector', '-o': 'output', '--output': 'output', '-f': 'filename', '--filename': 'filename', '-A': 'all-namespaces', '--all-namespaces': 'all-namespaces' };
-const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H']);
+const ALIAS = { '-n': 'namespace', '--namespace': 'namespace', '-l': 'selector', '--selector': 'selector', '-o': 'output', '--output': 'output', '-f': 'filename', '--filename': 'filename', '-A': 'all-namespaces', '--all-namespaces': 'all-namespaces', '-c': 'container', '--container': 'container' };
+const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H', '-c', '--container', '--schedule', '--completions', '--parallelism', '--from']);
+
+/**
+ * Quote-aware split so a quoted cron schedule survives as one token — embedded
+ * quotes (mid-token, after `=`) need real char-by-char scanning, not just
+ * splitting on standalone `"..."` args.
+ */
+function splitQuoted(s) {
+  const out = [];
+  let cur = '';
+  let inSingle = false;
+  let inDouble = false;
+  let started = false;
+  for (const c of s) {
+    if (inSingle) { if (c === "'") inSingle = false; else cur += c; continue; }
+    if (inDouble) { if (c === '"') inDouble = false; else cur += c; continue; }
+    if (c === "'") { inSingle = true; started = true; continue; }
+    if (c === '"') { inDouble = true; started = true; continue; }
+    if (/\s/.test(c)) { if (started) { out.push(cur); cur = ''; started = false; } continue; }
+    cur += c;
+    started = true;
+  }
+  if (started) out.push(cur);
+  return out;
+}
 
 function parseTokens(tokens) {
   const args = [];
@@ -64,18 +88,28 @@ const parseSelector = (s) => {
   return sel;
 };
 
-const fmtAge = (born) => {
-  const s = Math.max(1, Math.round((Date.now() - born) / 1000));
+const fmtDuration = (ms) => {
+  const s = Math.max(1, Math.round(ms / 1000));
   if (s < 90) return s + 's';
   const m = Math.round(s / 60);
   if (m < 90) return m + 'm';
   const h = Math.round(m / 60);
   return h < 48 ? h + 'h' : Math.round(h / 24) + 'd';
 };
+const fmtAge = (born) => fmtDuration(Date.now() - born);
 
 const b64 = (s) => (typeof btoa !== 'undefined' ? btoa(s) : Buffer.from(s).toString('base64'));
 const unb64 = (s) => { try { return typeof atob !== 'undefined' ? atob(s) : Buffer.from(s, 'base64').toString(); } catch { return s; } };
 const labelStr = (labels) => { const e = Object.entries(labels || {}); return e.length ? e.map(([k, v]) => k + '=' + v).join(',') : '&lt;none&gt;'; };
+
+/** describe pod's "Controlled By:" line — real for Job/DaemonSet/StatefulSet, ReplicaSet for Deployment-managed (and legacy pods with no ownerKind, back-compat). */
+const controlledByOf = (pod) => {
+  if (!pod.sim.owner) return '&lt;none&gt; (bare pod — nothing recreates it)';
+  const k = pod.sim.ownerKind;
+  if (!k || k === 'Deployment') return 'ReplicaSet/' + esc(pod.sim.rsName || '?');
+  if (k === 'ReplicaSet') return 'ReplicaSet/' + esc(pod.sim.owner.split('/').pop());
+  return esc(k) + '/' + esc(pod.sim.owner.split('/').pop());
+};
 
 /** Short form of a {matchLabels, matchExpressions} selector for table output. */
 const selShort = (sel) => {
@@ -83,6 +117,147 @@ const selShort = (sel) => {
   for (const ex of (sel && sel.matchExpressions) || []) parts.push(ex.key + ' ' + ex.operator + ' (' + (ex.values || []).join(',') + ')');
   return parts.length ? esc(parts.join(',')) : '&lt;none&gt; (all)';
 };
+
+/**
+ * Registry for the four workload kinds added in step 14 (Job/CronJob/DaemonSet/
+ * StatefulSet) — avoids paying the "kubectl tax" (aliases/plural/get/describe/
+ * apply, each currently a separate edit per kind) four more times. Pod/
+ * Deployment/ReplicaSet/Service/... keep their existing bespoke code above;
+ * only these new kinds route through this table.
+ */
+const WORKLOAD_KINDS = {
+  Job: {
+    aliases: ['job', 'jobs'],
+    plural: 'jobs.batch',
+    getHeader: () => pad('NAME', 24) + pad('COMPLETIONS', 14) + pad('DURATION', 10) + 'AGE',
+    getRow: (engine, o) => pad(o.metadata.name, 24) + pad(`${o.status.succeeded || 0}/${o.spec.completions}`, 14) + pad(fmtDuration((o.status.completionTime || Date.now()) - o.status.startTime), 10) + fmtAge(o.metadata.creationTimestamp),
+    describe: (engine, o) => {
+      const c = o.spec.template.spec.containers;
+      return `Name:             ${o.metadata.name}\nNamespace:        ${o.metadata.namespace}\nCompletions:      ${o.spec.completions}\nParallelism:      ${o.spec.parallelism}\nBackoff Limit:    ${o.spec.backoffLimit}\nStart Time:       ${new Date(o.status.startTime).toISOString()}${o.status.completionTime ? '\nCompleted At:     ' + new Date(o.status.completionTime).toISOString() + ` (${fmtDuration(o.status.completionTime - o.status.startTime)})` : ''}\nPods Statuses:    ${o.status.active || 0} Active / ${o.status.succeeded || 0} Succeeded / ${o.status.failed || 0} Failed\nPod Template:\n  Containers:\n` +
+        c.map((x) => `   ${x.name}:\n    Image:  ${esc(x.image)}${x.command ? '\n    Command:  ' + esc(x.command.join(' ')) : ''}`).join('\n');
+    },
+    applyDoc: (engine, doc, dns, print) => {
+      const spec = doc.spec || {};
+      const c = (spec.template && spec.template.spec && spec.template.spec.containers) || [];
+      if (!c.length || !c[0].image) return print('error: spec.template.spec.containers[0].image is required', 'err');
+      if (engine.get('Job', dns, doc.metadata.name)) return print(`Error from server (Conflict): jobs.batch "${esc(doc.metadata.name)}" already exists — Jobs are immutable; delete it first`, 'err');
+      engine.makeJob({
+        name: doc.metadata.name, ns: dns, labels: doc.metadata.labels || null,
+        completions: spec.completions != null ? spec.completions : 1,
+        parallelism: spec.parallelism != null ? spec.parallelism : 1,
+        backoffLimit: spec.backoffLimit != null ? spec.backoffLimit : 6,
+        containers: c,
+      });
+      print(`job.batch/${esc(doc.metadata.name)} created`, 'ok');
+    },
+  },
+  CronJob: {
+    aliases: ['cronjob', 'cronjobs', 'cj'],
+    plural: 'cronjobs.batch',
+    getHeader: () => pad('NAME', 20) + pad('SCHEDULE', 16) + pad('SUSPEND', 9) + pad('ACTIVE', 8) + 'AGE',
+    getRow: (engine, o) => {
+      const active = engine.list('Job', { ns: o.metadata.namespace }).filter((j) =>
+        (j.metadata.ownerReferences || []).some((r) => r.kind === 'CronJob' && r.name === o.metadata.name) && !j.status.complete && !j.status.jobFailed).length;
+      return pad(o.metadata.name, 20) + pad(o.spec.schedule, 16) + pad(o.spec.suspend ? 'True' : 'False', 9) + pad(active, 8) + fmtAge(o.metadata.creationTimestamp);
+    },
+    describe: (engine, o) => {
+      const c = o.spec.jobTemplate.spec.template.spec.containers;
+      const jobs = engine.list('Job', { ns: o.metadata.namespace }).filter((j) => (j.metadata.ownerReferences || []).some((r) => r.kind === 'CronJob' && r.name === o.metadata.name));
+      return `Name:                          ${o.metadata.name}\nNamespace:                     ${o.metadata.namespace}\nSchedule:                      ${esc(o.spec.schedule)}\nSuspend:                       ${o.spec.suspend ? 'True' : 'False'}\nLast Schedule Time:            ${o.status.lastScheduleTime ? new Date(o.status.lastScheduleTime).toISOString() : '&lt;none&gt;'}\nJob Template:\n  Containers:\n` +
+        c.map((x) => `   ${x.name}:\n    Image:  ${esc(x.image)}`).join('\n') +
+        `\nActive Jobs:  ${jobs.filter((j) => !j.status.complete && !j.status.jobFailed).length}`;
+    },
+    applyDoc: (engine, doc, dns, print) => {
+      const spec = doc.spec || {};
+      const jt = (spec.jobTemplate && spec.jobTemplate.spec) || {};
+      const c = (jt.template && jt.template.spec && jt.template.spec.containers) || [];
+      if (!spec.schedule) return print('error: spec.schedule is required', 'err');
+      if (!c.length || !c[0].image) return print('error: spec.jobTemplate.spec.template.spec.containers[0].image is required', 'err');
+      const existed = engine.get('CronJob', dns, doc.metadata.name);
+      if (existed) {
+        existed.spec.schedule = spec.schedule;
+        existed.spec.suspend = !!spec.suspend;
+        existed.spec.jobTemplate.spec.template.spec.containers = c;
+        return print(`cronjob.batch/${esc(doc.metadata.name)} configured`, 'ok');
+      }
+      engine.makeCronJob({
+        name: doc.metadata.name, ns: dns, labels: doc.metadata.labels || null,
+        schedule: spec.schedule, suspend: !!spec.suspend,
+        completions: jt.completions != null ? jt.completions : 1,
+        parallelism: jt.parallelism != null ? jt.parallelism : 1,
+        backoffLimit: jt.backoffLimit != null ? jt.backoffLimit : 6,
+        containers: c,
+      });
+      print(`cronjob.batch/${esc(doc.metadata.name)} created`, 'ok');
+    },
+  },
+  DaemonSet: {
+    aliases: ['daemonset', 'daemonsets', 'ds'],
+    plural: 'daemonsets.apps',
+    getHeader: () => pad('NAME', 20) + pad('DESIRED', 9) + pad('CURRENT', 9) + pad('READY', 7) + 'AGE',
+    getRow: (engine, o) => {
+      const pods = engine.podsOwnedBy(o);
+      return pad(o.metadata.name, 20) + pad(pods.length, 9) + pad(pods.length, 9) + pad(pods.filter((p) => p.status.ready).length, 7) + fmtAge(o.metadata.creationTimestamp);
+    },
+    describe: (engine, o) => {
+      const pods = engine.podsOwnedBy(o);
+      const c = o.spec.template.spec.containers;
+      return `Name:               ${o.metadata.name}\nNamespace:          ${o.metadata.namespace}\nSelector:           ${labelStr(o.spec.selector.matchLabels)}\nDesired Number of Nodes Scheduled: ${pods.length}\nCurrent Number of Nodes Scheduled: ${pods.length}\nNumber Ready:       ${pods.filter((p) => p.status.ready).length}\nPod Template:\n  Containers:\n` +
+        c.map((x) => `   ${x.name}:\n    Image:  ${esc(x.image)}`).join('\n');
+    },
+    applyDoc: (engine, doc, dns, print) => {
+      const spec = doc.spec || {};
+      const c = (spec.template && spec.template.spec && spec.template.spec.containers) || [];
+      if (!c.length || !c[0].image) return print('error: spec.template.spec.containers[0].image is required', 'err');
+      const existed = engine.get('DaemonSet', dns, doc.metadata.name);
+      if (existed) {
+        existed.spec.template.spec.containers = c;
+        return print(`daemonset.apps/${esc(doc.metadata.name)} configured`, 'ok');
+      }
+      engine.makeDaemonSet({
+        name: doc.metadata.name, ns: dns, labels: doc.metadata.labels || null,
+        containers: c, tolerations: spec.template.spec.tolerations || null,
+      });
+      print(`daemonset.apps/${esc(doc.metadata.name)} created`, 'ok');
+    },
+  },
+  StatefulSet: {
+    aliases: ['statefulset', 'statefulsets', 'sts'],
+    plural: 'statefulsets.apps',
+    getHeader: () => pad('NAME', 20) + pad('READY', 9) + 'AGE',
+    getRow: (engine, o) => {
+      const pods = engine.podsOwnedBy(o);
+      return pad(o.metadata.name, 20) + pad(`${pods.filter((p) => p.status.ready).length}/${o.spec.replicas}`, 9) + fmtAge(o.metadata.creationTimestamp);
+    },
+    describe: (engine, o) => {
+      const pods = engine.podsOwnedBy(o);
+      const c = o.spec.template.spec.containers;
+      return `Name:               ${o.metadata.name}\nNamespace:          ${o.metadata.namespace}\nSelector:           ${labelStr(o.spec.selector.matchLabels)}\nService Name:       ${o.spec.serviceName}\nReplicas:           ${o.spec.replicas} desired | ${pods.length} total\nPod Template:\n  Containers:\n` +
+        c.map((x) => `   ${x.name}:\n    Image:  ${esc(x.image)}`).join('\n');
+    },
+    applyDoc: (engine, doc, dns, print) => {
+      const spec = doc.spec || {};
+      const c = (spec.template && spec.template.spec && spec.template.spec.containers) || [];
+      if (!c.length || !c[0].image) return print('error: spec.template.spec.containers[0].image is required', 'err');
+      const existed = engine.get('StatefulSet', dns, doc.metadata.name);
+      if (existed) {
+        existed.spec.replicas = spec.replicas != null ? spec.replicas : existed.spec.replicas;
+        existed.spec.template.spec.containers = c;
+        return print(`statefulset.apps/${esc(doc.metadata.name)} configured`, 'ok');
+      }
+      engine.makeStatefulSet({
+        name: doc.metadata.name, ns: dns, labels: doc.metadata.labels || null,
+        replicas: spec.replicas != null ? spec.replicas : 1, containers: c,
+        volumeClaimTemplates: spec.volumeClaimTemplates || null,
+      });
+      print(`statefulset.apps/${esc(doc.metadata.name)} created`, 'ok');
+    },
+  },
+};
+for (const [kind, def] of Object.entries(WORKLOAD_KINDS)) {
+  for (const a of def.aliases) KIND_ALIASES[a] = kind;
+  PLURAL[kind] = def.plural;
+}
 
 /* ---------- kubectl ---------- */
 
@@ -98,6 +273,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const meta = { name: o.metadata.name };
     if (o.metadata.namespace) meta.namespace = o.metadata.namespace;
     if (o.metadata.labels && Object.keys(o.metadata.labels).length) meta.labels = o.metadata.labels;
+    if (o.metadata.ownerReferences && o.metadata.ownerReferences.length) meta.ownerReferences = o.metadata.ownerReferences;
     meta.creationTimestamp = new Date(o.metadata.creationTimestamp).toISOString();
     const m = { apiVersion: o.apiVersion, kind: o.kind, metadata: meta };
     if (o.data) m.data = o.data;
@@ -109,11 +285,16 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       m.status = {
         phase: o.status.phase,
         ...(o.status.podIP ? { podIP: o.status.podIP } : {}),
-        containerStatuses: [{ name: o.spec.containers[0].name, image: o.spec.containers[0].image, ready: o.status.ready, restartCount: o.status.restarts, state: o.status.state }],
+        ...(o.status.initContainerStatuses ? { initContainerStatuses: o.status.initContainerStatuses.map((cs, i) => ({ name: cs.name, image: o.spec.initContainers[i].image, ready: cs.ready, state: cs.state })) } : {}),
+        containerStatuses: o.status.containerStatuses.map((cs, i) => ({ name: cs.name, image: o.spec.containers[i].image, ready: cs.ready, restartCount: cs.restartCount, state: cs.state })),
       };
     if (o.kind === 'Deployment') {
       const pods = engine.ownedPods(o);
       m.status = { replicas: pods.length, readyReplicas: pods.filter((p) => p.status.ready).length, observedGeneration: o.sim.revision };
+    }
+    if (o.kind === 'ReplicaSet') {
+      const pods = engine.podsOwnedBy(o);
+      m.status = { replicas: pods.length, readyReplicas: pods.filter((p) => p.status.ready).length };
     }
     if (o.kind === 'Node') m.status = { conditions: [{ type: 'Ready', status: o.status.ready ? 'True' : 'False' }] };
     return m;
@@ -134,9 +315,11 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
   };
 
   function podRow(p, { all, wide, showLabels }) {
+    const total = p.spec.containers.length;
+    const ready = (p.status.containerStatuses || []).filter((cs) => cs.ready).length;
     return (
       (all ? pad(p.metadata.namespace, 14) : '') +
-      pad(p.metadata.name, 34) + pad(p.status.ready ? '1/1' : '0/1', 8) + pad(p.status.state, 20) +
+      pad(p.metadata.name, 34) + pad(`${ready}/${total}`, 8) + pad(p.status.state, 20) +
       pad(p.status.restarts, 10) + pad(age(p), 6) +
       (wide ? pad(p.status.podIP || '&lt;none&gt;', 14) + pad(p.spec.nodeName || '&lt;none&gt;', 15) : '') +
       (showLabels ? labelStr(p.metadata.labels) : '')
@@ -167,29 +350,21 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
         const ready = pods.filter((p) => p.status.ready).length;
         const upToDate = pods.filter((p) => engine.podImage(p) === engine.depImage(d)).length;
         return (opts.all ? pad(d.metadata.namespace, 14) : '') + pad(d.metadata.name, 12) + pad(ready + '/' + d.spec.replicas, 8) + pad(upToDate, 12) + pad(ready, 11) + pad(age(d), 6) +
-          (opts.wide ? pad(d.spec.template.spec.containers[0].name, 12) + engine.depImage(d) : '');
+          (opts.wide ? pad(d.spec.template.spec.containers.map((c) => c.name).join(','), 12) + d.spec.template.spec.containers.map((c) => c.image).join(',') : '');
       }).join('\n'),
     );
   }
 
   function getReplicaSets(print, opts) {
-    const rows = [];
-    for (const d of engine.list('Deployment', opts)) {
-      const groups = new Map();
-      for (const p of engine.ownedPods(d, true)) {
-        const rs = p.sim.rsName || d.sim.rsName;
-        if (!groups.has(rs)) groups.set(rs, []);
-        groups.get(rs).push(p);
-      }
-      if (!groups.has(d.sim.rsName)) groups.set(d.sim.rsName, []);
-      for (const [rs, pods] of groups) {
-        if (opts.only && rs !== opts.only) continue;
-        const desired = rs === d.sim.rsName ? d.spec.replicas : 0;
-        rows.push(pad(rs, 24) + pad(desired, 9) + pad(pods.filter((p) => p.status.state !== 'Terminating').length, 9) + pad(pods.filter((p) => p.status.ready).length, 7) + age(d));
-      }
-    }
-    if (!rows.length) return print(`No resources found in ${opts.ns} namespace.`);
-    print(pad('NAME', 24) + pad('DESIRED', 9) + pad('CURRENT', 9) + pad('READY', 7) + 'AGE\n' + rows.join('\n'));
+    const rsList = listFor('ReplicaSet', opts);
+    if (!rsList.length) return print(`No resources found in ${opts.ns} namespace.`);
+    print(
+      pad('NAME', 24) + pad('DESIRED', 9) + pad('CURRENT', 9) + pad('READY', 7) + 'AGE\n' +
+      rsList.map((rs) => {
+        const pods = engine.podsOwnedBy(rs, true);
+        return pad(rs.metadata.name, 24) + pad(rs.spec.replicas, 9) + pad(pods.filter((p) => p.status.state !== 'Terminating').length, 9) + pad(pods.filter((p) => p.status.ready).length, 7) + age(rs);
+      }).join('\n'),
+    );
   }
 
   function getServices(print, opts) {
@@ -296,14 +471,10 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (!kind) return print(`error: the server doesn't have a resource type "${esc(kindArg)}"`, 'err');
 
     if (name && kind !== 'Event') {
-      // ReplicaSets aren't stored objects (they're synthesized from pod groups
-      // in getReplicaSets), so there's nothing to look up — just narrow the rows.
-      if (kind !== 'ReplicaSet') {
-        const obj = CLUSTER_SCOPED.has(kind) ? engine.get(kind, null, name) : engine.get(kind, opts.ns, name);
-        if (!obj) return print(notFound(kind, name), 'err');
-        if (flags.output === 'yaml') return printYaml(print, [obj]);
-        if (kind === 'Pod') return getPods(print, opts, obj);
-      }
+      const obj = CLUSTER_SCOPED.has(kind) ? engine.get(kind, null, name) : engine.get(kind, opts.ns, name);
+      if (!obj) return print(notFound(kind, name), 'err');
+      if (flags.output === 'yaml') return printYaml(print, [obj]);
+      if (kind === 'Pod') return getPods(print, opts, obj);
       opts.only = name; // the row renderers below print just this object
     }
     if (flags.output === 'yaml') {
@@ -325,6 +496,12 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (kind === 'Node') return getNodes(print, opts);
     if (kind === 'Event') return getEvents(print, opts);
     if (kind === 'PodDisruptionBudget') return getPdbs(print, opts);
+    if (WORKLOAD_KINDS[kind]) {
+      const def = WORKLOAD_KINDS[kind];
+      const objs = listFor(kind, opts);
+      if (!objs.length) return print(`No resources found in ${opts.ns} namespace.`);
+      return print(def.getHeader() + '\n' + objs.map((o) => def.getRow(engine, o)).join('\n'));
+    }
     return getGeneric(kind, print, opts);
   }
 
@@ -347,45 +524,63 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (!obj) return print(notFound(kind, name || ''), 'err');
 
     if (kind === 'Pod') {
-      const c = obj.spec.containers[0];
       const probeLine = (label, pr) => pr && pr.httpGet
         ? `\n    ${pad(label + ':', 16)}http-get http://:${pr.httpGet.port}${pr.httpGet.path || '/'} period=${pr.periodSeconds || 10}s #failure=${pr.failureThreshold || 3}`
         : '';
       const resBlock = (label, r) => r && Object.keys(r).length
         ? `\n    ${label}:\n` + Object.entries(r).map(([k, v]) => '      ' + pad(k + ':', 10) + v).join('\n')
         : '';
-      const envLines = [];
-      for (const e of c.env || []) {
-        const vf = e.valueFrom || {};
-        if (vf.configMapKeyRef) envLines.push(`${e.name}:  &lt;set to the key '${esc(vf.configMapKeyRef.key)}' of config map '${esc(vf.configMapKeyRef.name)}'&gt;`);
-        else if (vf.secretKeyRef) envLines.push(`${e.name}:  &lt;set to the key '${esc(vf.secretKeyRef.key)}' in secret '${esc(vf.secretKeyRef.name)}'&gt;`);
-        else envLines.push(`${e.name}:  ${esc(e.value || '')}`);
-      }
-      for (const ef of c.envFrom || []) {
-        if (ef.configMapRef) envLines.push(`(all keys of ConfigMap ${esc(ef.configMapRef.name)})`);
-        if (ef.secretRef) envLines.push(`(all keys of Secret ${esc(ef.secretRef.name)})`);
-      }
-      const envBlock = envLines.length ? '\n    Environment:\n' + envLines.map((l) => '      ' + l).join('\n') : '';
-      const mounts = (c.volumeMounts || []).map((m) => `      ${m.mountPath} from ${m.name}`).join('\n');
-      const mountBlock = mounts ? '\n    Mounts:\n' + mounts : '';
-      const lastState = obj.sim.oomCount
-        ? '\n    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137'
+      const envBlockFor = (c) => {
+        const envLines = [];
+        for (const e of c.env || []) {
+          const vf = e.valueFrom || {};
+          if (vf.configMapKeyRef) envLines.push(`${e.name}:  &lt;set to the key '${esc(vf.configMapKeyRef.key)}' of config map '${esc(vf.configMapKeyRef.name)}'&gt;`);
+          else if (vf.secretKeyRef) envLines.push(`${e.name}:  &lt;set to the key '${esc(vf.secretKeyRef.key)}' in secret '${esc(vf.secretKeyRef.name)}'&gt;`);
+          else envLines.push(`${e.name}:  ${esc(e.value || '')}`);
+        }
+        for (const ef of c.envFrom || []) {
+          if (ef.configMapRef) envLines.push(`(all keys of ConfigMap ${esc(ef.configMapRef.name)})`);
+          if (ef.secretRef) envLines.push(`(all keys of Secret ${esc(ef.secretRef.name)})`);
+        }
+        return envLines.length ? '\n    Environment:\n' + envLines.map((l) => '      ' + l).join('\n') : '';
+      };
+      // oomCount is a running counter (not transient state), so "Last State" survives the auto-restart
+      const oomCountOf = (name) => obj.spec.containers.length <= 1
+        ? (obj.sim.oomCount || 0)
+        : ((obj.sim.containers && obj.sim.containers[name] && obj.sim.containers[name].oomCount) || 0);
+      // shared renderer for both Containers: and Init Containers: entries
+      const containerBlock = (c, cs, { init = false } = {}) => {
+        const res = c.resources || {};
+        const mounts = (c.volumeMounts || []).map((m) => `      ${m.mountPath} from ${m.name}`).join('\n');
+        const mountBlock = mounts ? '\n    Mounts:\n' + mounts : '';
+        const lastState = !init && oomCountOf(c.name)
+          ? '\n    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137'
+          : '';
+        return `  ${c.name}:\n    Image:          ${esc(c.image)}\n    ${c.ports ? 'Port:           ' + c.ports[0].containerPort + '/TCP\n    ' : ''}State:          ${cs ? cs.state : '?'}${lastState}\n    Ready:          ${cs ? cs.ready : false}` +
+          (init ? '' : `\n    Restart Count:  ${cs ? cs.restartCount || 0 : 0}`) +
+          resBlock('Limits', res.limits) + resBlock('Requests', res.requests) +
+          (init ? '' : probeLine('Liveness', c.livenessProbe) + probeLine('Readiness', c.readinessProbe)) +
+          envBlockFor(c) + mountBlock +
+          (c.command ? '\n    Command:        ' + esc(c.command.join(' ')) : '');
+      };
+      const initBlock = (obj.spec.initContainers || []).length
+        ? '\nInit Containers:\n' + obj.spec.initContainers.map((c, i) => containerBlock(c, (obj.status.initContainerStatuses || [])[i], { init: true })).join('\n')
         : '';
-      const res = c.resources || {};
+      const containersBlock = obj.spec.containers.map((c, i) => containerBlock(c, (obj.status.containerStatuses || [])[i])).join('\n');
       print(
-        `Name:             ${obj.metadata.name}\nNamespace:        ${obj.metadata.namespace}\nNode:             ${obj.spec.nodeName || '&lt;none&gt;'}\nLabels:           ${labelStr(obj.metadata.labels)}\nStatus:           ${obj.status.phase}\nIP:               ${obj.status.podIP || '&lt;none&gt;'}\nControlled By:    ${obj.sim.owner ? 'ReplicaSet/' + obj.sim.rsName : '&lt;none&gt; (bare pod — nothing recreates it)'}\nContainers:\n  ${c.name}:\n    Image:          ${esc(c.image)}\n    ${c.ports ? 'Port:           ' + c.ports[0].containerPort + '/TCP\n    ' : ''}State:          ${obj.status.state}${lastState}\n    Ready:          ${obj.status.ready}\n    Restart Count:  ${obj.status.restarts}` +
-        resBlock('Limits', res.limits) + resBlock('Requests', res.requests) +
-        probeLine('Liveness', c.livenessProbe) + probeLine('Readiness', c.readinessProbe) +
-        envBlock + mountBlock +
-        `${c.command ? '\n    Command:        ' + esc(c.command.join(' ')) : ''}\nQoS Class:        ${qosOf(obj)}\nNode-Selectors:   ${obj.spec.nodeSelector ? Object.entries(obj.spec.nodeSelector).map(([k, v]) => k + '=' + v).join(',') : '&lt;none&gt;'}\nTolerations:      ${(obj.spec.tolerations || []).map((t) => (t.key || '(all)') + (t.value ? '=' + t.value : '') + (t.effect ? ':' + t.effect : '')).join(', ') || '&lt;none&gt;'}\n` + eventsBlock('Pod/' + obj.metadata.name),
+        `Name:             ${obj.metadata.name}\nNamespace:        ${obj.metadata.namespace}\nNode:             ${obj.spec.nodeName || '&lt;none&gt;'}\nLabels:           ${labelStr(obj.metadata.labels)}\nStatus:           ${obj.status.phase}\nIP:               ${obj.status.podIP || '&lt;none&gt;'}\nControlled By:    ${controlledByOf(obj)}` +
+        initBlock +
+        `\nContainers:\n${containersBlock}\n` +
+        `QoS Class:        ${qosOf(obj)}\nNode-Selectors:   ${obj.spec.nodeSelector ? Object.entries(obj.spec.nodeSelector).map(([k, v]) => k + '=' + v).join(',') : '&lt;none&gt;'}\nTolerations:      ${(obj.spec.tolerations || []).map((t) => (t.key || '(all)') + (t.value ? '=' + t.value : '') + (t.effect ? ':' + t.effect : '')).join(', ') || '&lt;none&gt;'}\n` + eventsBlock('Pod/' + obj.metadata.name),
       );
       return;
     }
     if (kind === 'Deployment') {
       const pods = engine.ownedPods(obj);
       const ready = pods.filter((p) => p.status.ready).length;
+      const containersBlock = obj.spec.template.spec.containers.map((c) => `   ${c.name}:\n    Image:  ${esc(c.image)}`).join('\n');
       print(
-        `Name:                   ${obj.metadata.name}\nNamespace:              ${obj.metadata.namespace}\nSelector:               ${labelStr(obj.spec.selector.matchLabels)}\nReplicas:               ${obj.spec.replicas} desired | ${pods.length} total | ${ready} available\nStrategyType:           RollingUpdate\nPod Template:\n  Labels:  ${labelStr(obj.spec.template.metadata.labels)}\n  Containers:\n   ${obj.spec.template.spec.containers[0].name}:\n    Image:  ${esc(engine.depImage(obj))}\nNewReplicaSet:          ${obj.sim.rsName} (${pods.filter((p) => p.sim.rsName === obj.sim.rsName).length} replicas created)\nRevision:               ${obj.sim.revision}\n` + eventsBlock('Deployment/' + obj.metadata.name),
+        `Name:                   ${obj.metadata.name}\nNamespace:              ${obj.metadata.namespace}\nSelector:               ${labelStr(obj.spec.selector.matchLabels)}\nReplicas:               ${obj.spec.replicas} desired | ${pods.length} total | ${ready} available\nStrategyType:           RollingUpdate\nPod Template:\n  Labels:  ${labelStr(obj.spec.template.metadata.labels)}\n  Containers:\n${containersBlock}\nNewReplicaSet:          ${obj.sim.rsName} (${pods.filter((p) => p.sim.rsName === obj.sim.rsName).length} replicas created)\nRevision:               ${obj.sim.revision}\n` + eventsBlock('Deployment/' + obj.metadata.name),
       );
       return;
     }
@@ -499,15 +694,47 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       );
       return;
     }
+    if (WORKLOAD_KINDS[kind]) return print(WORKLOAD_KINDS[kind].describe(engine, obj) + eventsBlock(kind + '/' + obj.metadata.name));
     print(`Name:  ${obj.metadata.name}\nStatus:  Active`);
   }
 
   /* ----- create / run / apply ----- */
 
-  function cmdCreate(print, args, flags) {
+  function cmdCreate(print, args, flags, rest) {
     const ns = flags.namespace || 'default';
     const what = (args[1] || '').toLowerCase();
     if (flags.filename) return cmdApply(print, args, flags, true);
+
+    if (what === 'job') {
+      const name = args[2];
+      if (!name) return print('error: usage: kubectl create job NAME --image=IMAGE [-- COMMAND] | --from=cronjob/NAME', 'err');
+      if (engine.get('Job', ns, name)) return print(`Error from server (AlreadyExists): jobs.batch "${esc(name)}" already exists`, 'err');
+      if (flags.from) {
+        const [fromKind, fromName] = String(flags.from).split('/');
+        if (fromKind !== 'cronjob' && fromKind !== 'cronjobs') return print('error: --from must be cronjob/NAME', 'err');
+        const cj = engine.get('CronJob', ns, fromName || '');
+        if (!cj) return print(notFound('CronJob', fromName || ''), 'err');
+        const jt = cj.spec.jobTemplate.spec;
+        engine.makeJob({ name, ns, completions: jt.completions, parallelism: jt.parallelism, backoffLimit: jt.backoffLimit, containers: jt.template.spec.containers });
+        print(`job.batch/${esc(name)} created`, 'ok');
+        print("<span class='info'>A one-off run of the CronJob's template — same as if the schedule had just fired.</span>");
+        return;
+      }
+      if (!flags.image) return print('error: usage: kubectl create job NAME --image=IMAGE [-- COMMAND] | --from=cronjob/NAME', 'err');
+      engine.makeJob({ name, ns, image: flags.image, command: rest || null });
+      print(`job.batch/${esc(name)} created`, 'ok');
+      print("<span class='info'>Unlike a Deployment, a Job's pod runs to completion — Succeeded, not Running forever.</span>");
+      return;
+    }
+    if (what === 'cronjob' || what === 'cj') {
+      const name = args[2];
+      if (!name || !flags.image || !flags.schedule) return print('error: usage: kubectl create cronjob NAME --image=IMAGE --schedule="* * * * *" [-- COMMAND]', 'err');
+      if (engine.get('CronJob', ns, name)) return print(`Error from server (AlreadyExists): cronjobs.batch "${esc(name)}" already exists`, 'err');
+      engine.makeCronJob({ name, ns, image: flags.image, command: rest || null, schedule: flags.schedule });
+      print(`cronjob.batch/${esc(name)} created`, 'ok');
+      print("<span class='info'>The schedule is real cron syntax — this sim just runs its clock fast so you can watch it fire.</span>");
+      return;
+    }
 
     if (what === 'deployment' || what === 'deploy') {
       const name = args[2];
@@ -670,7 +897,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       print("<span class='info'>An Ingress is only routing RULES — an ingress-controller pod does the actual proxying (the sim plays that part). Test it like an external client: curl http://HOST/PATH</span>");
       return;
     }
-    print(`error: unknown create target "${esc(what)}" (supported: deployment, namespace, configmap, secret generic, serviceaccount, role, clusterrole, rolebinding, clusterrolebinding, ingress, -f FILE)`, 'err');
+    print(`error: unknown create target "${esc(what)}" (supported: deployment, job, cronjob, namespace, configmap, secret generic, serviceaccount, role, clusterrole, rolebinding, clusterrolebinding, ingress, poddisruptionbudget, -f FILE)`, 'err');
   }
 
   function cmdRun(print, args, flags, rest) {
@@ -697,6 +924,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (kind !== 'Namespace' && kind !== 'Node' && !engine.get('Namespace', null, dns))
       return print(`Error from server (NotFound): namespaces "${esc(dns)}" not found`, 'err');
 
+    if (WORKLOAD_KINDS[kind]) { WORKLOAD_KINDS[kind].applyDoc(engine, doc, dns, print); onMission('apply'); return; }
+
     if (kind === 'Namespace') {
       if (engine.get('Namespace', null, name)) return print(`namespace/${name} unchanged`);
       engine.makeNamespace(name);
@@ -704,76 +933,91 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     if (kind === 'Pod') {
       if (engine.get('Pod', dns, name)) return print(`Error from server (Conflict): pods "${esc(name)}" already exists — most pod fields are immutable; delete it first`, 'err');
-      const c = (doc.spec && doc.spec.containers && doc.spec.containers[0]) || {};
-      if (!c.image) return print('error: spec.containers[0].image is required', 'err');
-      engine.makePod({
-        name, ns: dns, labels: meta.labels || {}, image: c.image, command: c.command || null,
-        readinessProbe: c.readinessProbe || null,
-        livenessProbe: c.livenessProbe || null,
-        resources: c.resources || null,
-        env: c.env || null,
-        envFrom: c.envFrom || null,
-        volumeMounts: c.volumeMounts || null,
+      const containers = (doc.spec && doc.spec.containers) || [];
+      if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
+      const common = {
+        name, ns: dns, labels: meta.labels || {},
         volumes: (doc.spec && doc.spec.volumes) || null,
-        containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
         tolerations: (doc.spec && doc.spec.tolerations) || [],
         nodeSelector: (doc.spec && doc.spec.nodeSelector) || null,
         affinity: (doc.spec && doc.spec.affinity) || null,
-      });
+      };
+      if (containers.length > 1 || (doc.spec.initContainers || []).length) {
+        engine.makePod({ ...common, containers, initContainers: doc.spec.initContainers || null });
+      } else {
+        const c = containers[0];
+        engine.makePod({
+          ...common, image: c.image, command: c.command || null,
+          readinessProbe: c.readinessProbe || null,
+          livenessProbe: c.livenessProbe || null,
+          resources: c.resources || null,
+          env: c.env || null,
+          envFrom: c.envFrom || null,
+          volumeMounts: c.volumeMounts || null,
+          containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
+        });
+      }
       onMission('apply');
       return print(`pod/${name} created`, 'ok');
     }
     if (kind === 'Deployment') {
       const spec = doc.spec || {};
       const tmpl = spec.template || {};
-      const c = (tmpl.spec && tmpl.spec.containers && tmpl.spec.containers[0]) || {};
-      if (!c.image) return print('error: spec.template.spec.containers[0].image is required', 'err');
+      const containers = (tmpl.spec && tmpl.spec.containers) || [];
+      if (!containers.length || !containers[0].image) return print('error: spec.template.spec.containers[0].image is required', 'err');
       const existing = engine.get('Deployment', dns, name);
       if (existing) {
         // apply replaces the container spec wholesale (like server-side apply
         // with a single manager) — removing a field in YAML removes it live
-        const old = existing.spec.template.spec.containers[0];
-        const next = {
-          name: c.name || old.name, image: c.image,
-          ...(c.command ? { command: c.command } : {}),
-          ...(c.ports ? { ports: c.ports } : {}),
-          ...(c.resources ? { resources: c.resources } : {}),
-          ...(c.env ? { env: c.env } : {}),
-          ...(c.envFrom ? { envFrom: c.envFrom } : {}),
-          ...(c.readinessProbe ? { readinessProbe: c.readinessProbe } : {}),
-          ...(c.livenessProbe ? { livenessProbe: c.livenessProbe } : {}),
-          ...(c.volumeMounts ? { volumeMounts: c.volumeMounts } : {}),
-        };
+        const oldContainers = existing.spec.template.spec.containers;
+        const oldInit = existing.spec.template.spec.initContainers || null;
+        const newInit = tmpl.spec.initContainers || null;
         const podFields = (s) => JSON.stringify({
           v: s.volumes || null, a: s.affinity || null, t: s.tolerations || null, n: s.nodeSelector || null,
         });
-        const templateChanged = JSON.stringify(old) !== JSON.stringify(next) ||
+        const templateChanged = JSON.stringify(oldContainers) !== JSON.stringify(containers) ||
+          JSON.stringify(oldInit) !== JSON.stringify(newInit) ||
           podFields(existing.spec.template.spec) !== podFields(tmpl.spec || {});
         existing.spec.replicas = spec.replicas != null ? spec.replicas : existing.spec.replicas;
         if (tmpl.metadata && tmpl.metadata.labels) existing.spec.template.metadata.labels = tmpl.metadata.labels;
         if (spec.selector && spec.selector.matchLabels) existing.spec.selector.matchLabels = spec.selector.matchLabels;
         if (templateChanged) {
-          existing.spec.template.spec.containers[0] = next;
+          existing.spec.template.spec.containers = containers;
+          if (newInit && newInit.length) existing.spec.template.spec.initContainers = newInit;
+          else delete existing.spec.template.spec.initContainers;
           for (const [field, val] of [['volumes', tmpl.spec && tmpl.spec.volumes], ['affinity', tmpl.spec && tmpl.spec.affinity], ['tolerations', tmpl.spec && tmpl.spec.tolerations], ['nodeSelector', tmpl.spec && tmpl.spec.nodeSelector]]) {
             if (val) existing.spec.template.spec[field] = val;
             else delete existing.spec.template.spec[field];
           }
-          rotateRevision(existing, next.image); // any template change rolls the pods
+          engine.rotateDeployment(existing); // any template change rolls the pods
         }
         return print(`deployment.apps/${name} configured`, 'ok');
       }
-      const labels = (spec.selector && spec.selector.matchLabels) || (tmpl.metadata && tmpl.metadata.labels) || { app: name };
-      const d = engine.makeDeployment({
-        name, ns: dns, labels, replicas: spec.replicas != null ? spec.replicas : 1, image: c.image, command: c.command || null,
-        readinessProbe: c.readinessProbe || null, livenessProbe: c.livenessProbe || null,
-        resources: c.resources || null, env: c.env || null, envFrom: c.envFrom || null,
-        volumeMounts: c.volumeMounts || null, volumes: (tmpl.spec && tmpl.spec.volumes) || null,
-        containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
+      // the pod template's labels — NOT necessarily the same as the selector, which is
+      // allowed to be a narrower subset — must be right from the start: makeDeployment()
+      // clones the template into a real ReplicaSet immediately, so patching labels
+      // afterward (like the pre-RS code did) would leave the RS with a stale copy.
+      const labels = (tmpl.metadata && tmpl.metadata.labels) || (spec.selector && spec.selector.matchLabels) || { app: name };
+      const common = {
+        name, ns: dns, labels, replicas: spec.replicas != null ? spec.replicas : 1,
         tolerations: (tmpl.spec && tmpl.spec.tolerations) || null,
         nodeSelector: (tmpl.spec && tmpl.spec.nodeSelector) || null,
         affinity: (tmpl.spec && tmpl.spec.affinity) || null,
-      });
-      if (tmpl.metadata && tmpl.metadata.labels) d.spec.template.metadata.labels = tmpl.metadata.labels;
+      };
+      let d;
+      if (containers.length > 1 || (tmpl.spec.initContainers || []).length) {
+        d = engine.makeDeployment({ ...common, containers, initContainers: tmpl.spec.initContainers || null, volumes: (tmpl.spec && tmpl.spec.volumes) || null });
+      } else {
+        const c = containers[0];
+        d = engine.makeDeployment({
+          ...common, image: c.image, command: c.command || null,
+          readinessProbe: c.readinessProbe || null, livenessProbe: c.livenessProbe || null,
+          resources: c.resources || null, env: c.env || null, envFrom: c.envFrom || null,
+          volumeMounts: c.volumeMounts || null, volumes: (tmpl.spec && tmpl.spec.volumes) || null,
+          containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
+        });
+      }
+      if (spec.selector && spec.selector.matchLabels) d.spec.selector.matchLabels = spec.selector.matchLabels;
       onMission('apply');
       return print(`deployment.apps/${name} created`, 'ok');
     }
@@ -904,7 +1148,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
         print("<span class='info'>Weighted backendRefs split traffic — a built-in canary. curl the route a few times and count who answers.</span>");
       return;
     }
-    print(`error: the simulator can't apply kind "${esc(kind)}" yet (supported: Pod, Deployment, Service, ConfigMap, Secret, Namespace, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, NetworkPolicy, Ingress, GatewayClass, Gateway, HTTPRoute, PodDisruptionBudget)`, 'err');
+    print(`error: the simulator can't apply kind "${esc(kind)}" yet (supported: Pod, Deployment, Job, CronJob, DaemonSet, StatefulSet, Service, ConfigMap, Secret, Namespace, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, NetworkPolicy, Ingress, GatewayClass, Gateway, HTTPRoute, PodDisruptionBudget)`, 'err');
   }
 
   function cmdApply(print, args, flags) {
@@ -921,13 +1165,6 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
   }
 
   /* ----- mutate ----- */
-
-  function rotateRevision(d, image) {
-    d.spec.template.spec.containers[0].image = image;
-    d.sim.revision++;
-    d.sim.rsName = d.metadata.name + '-' + Math.random().toString(36).slice(2, 11);
-    d.sim.history.push({ rev: d.sim.revision, image, at: Date.now() });
-  }
 
   function cmdScale(print, args, flags) {
     const ns = flags.namespace || 'default';
@@ -992,8 +1229,33 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     if (obj.kind === 'Deployment') {
       for (const p of engine.ownedPods(obj, true)) engine.markTerminating(p);
+      for (const rs of engine.replicaSetsOf(obj)) engine.remove(rs);
       engine.remove(obj);
       return print(`deployment.apps "${obj.metadata.name}" deleted`, 'ok');
+    }
+    if (obj.kind === 'ReplicaSet') {
+      for (const p of engine.podsOwnedBy(obj, true)) engine.markTerminating(p);
+      engine.remove(obj);
+      return print(`replicaset.apps "${obj.metadata.name}" deleted`, 'ok');
+    }
+    if (obj.kind === 'DaemonSet' || obj.kind === 'StatefulSet') {
+      for (const p of engine.podsOwnedBy(obj, true)) engine.markTerminating(p);
+      engine.remove(obj);
+      return print(`${obj.kind.toLowerCase()}.apps "${obj.metadata.name}" deleted`, 'ok');
+    }
+    if (obj.kind === 'Job') {
+      for (const p of engine.podsOwnedBy(obj, true)) engine.markTerminating(p);
+      engine.remove(obj);
+      return print(`job.batch "${obj.metadata.name}" deleted`, 'ok');
+    }
+    if (obj.kind === 'CronJob') {
+      for (const j of engine.list('Job', { ns: obj.metadata.namespace })) {
+        if (!(j.metadata.ownerReferences || []).some((r) => r.kind === 'CronJob' && r.name === obj.metadata.name)) continue;
+        for (const p of engine.podsOwnedBy(j, true)) engine.markTerminating(p);
+        engine.remove(j);
+      }
+      engine.remove(obj);
+      return print(`cronjob.batch "${obj.metadata.name}" deleted`, 'ok');
     }
     if (obj.kind === 'Namespace') {
       if (obj.metadata.name === 'default' || obj.metadata.name === 'kube-system')
@@ -1029,9 +1291,12 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const spec = args[3] || '';
     const [cname, newImg] = spec.split('=');
     if (!newImg) return print('error: usage: kubectl set image deployment/NAME container=IMAGE', 'err');
-    const realC = d.spec.template.spec.containers[0].name;
-    if (cname !== realC && cname !== '*') return print(`error: unable to find container named "${esc(cname)}" (this deployment's container is "${realC}")`, 'err');
-    rotateRevision(d, newImg);
+    const containers = d.spec.template.spec.containers;
+    if (cname !== '*' && !containers.some((c) => c.name === cname))
+      return print(`error: unable to find container named "${esc(cname)}" (this deployment's containers are: ${containers.map((c) => c.name).join(', ')})`, 'err');
+    if (cname === '*') for (const c of containers) c.image = newImg;
+    else containers.find((c) => c.name === cname).image = newImg;
+    engine.rotateDeployment(d);
     print(`deployment.apps/${d.metadata.name} image updated`, 'ok');
     print("<span class='info'>Rolling update begins: new-image pods (purple glow) are created one at a time while old ones terminate — zero downtime. Watch →</span>");
     onMission('rollout');
@@ -1044,7 +1309,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const d = engine.get('Deployment', ns, target[1] || '');
     if (!d) return print(notFound('Deployment', target[1] || ''), 'err');
     if (sub === 'status') {
-      const ready = engine.ownedPods(d).filter((p) => p.status.ready && engine.podImage(p) === engine.depImage(d)).length;
+      const cur = engine.get('ReplicaSet', ns, d.sim.rsName);
+      const ready = cur ? engine.podsOwnedBy(cur).filter((p) => p.status.ready).length : 0;
       return print(ready >= d.spec.replicas ? `deployment "${d.metadata.name}" successfully rolled out` : `Waiting for deployment "${d.metadata.name}" rollout to finish: ${ready} of ${d.spec.replicas} updated replicas are available...`);
     }
     if (sub === 'history') {
@@ -1052,9 +1318,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     if (sub === 'undo') {
       const toRev = flags['to-revision'] ? Number(flags['to-revision']) : null;
-      const entry = toRev ? d.sim.history.find((h) => h.rev === toRev) : d.sim.history[d.sim.history.length - 2];
-      if (!entry) return print(toRev ? `error: unable to find specified revision ${toRev} in history` : 'error: no rollout history to undo', 'err');
-      rotateRevision(d, entry.image);
+      const target = engine.rollbackDeployment(d, toRev);
+      if (!target) return print(toRev ? `error: unable to find specified revision ${toRev} in history` : 'error: no rollout history to undo', 'err');
       print(`deployment.apps/${d.metadata.name} rolled back`, 'ok');
       print("<span class='info'>Undo is just another rolling update — to the previous template. Check kubectl rollout history: the old image comes back as a NEW revision.</span>");
       onMission('undo');
@@ -1067,17 +1332,32 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const ns = flags.namespace || 'default';
     const p = engine.get('Pod', ns, args[1] || '');
     if (!p) return print(notFound('Pod', args[1] || ''), 'err');
-    const c = p.spec.containers[0];
-    if (p.status.state === 'ImagePullBackOff' || p.status.state === 'ErrImagePull')
+    const containers = p.spec.containers;
+    let c = containers[0];
+    if (flags.container) {
+      c = containers.find((x) => x.name === flags.container);
+      if (!c) return print(`error: container ${esc(flags.container)} not found in pod ${p.metadata.name}`, 'err');
+    } else if (containers.length > 1) {
+      return print(`error: a container name must be specified for pod ${p.metadata.name}, choose one of: [${containers.map((x) => x.name).join(' ')}]`, 'err');
+    }
+    const cs = (p.status.containerStatuses || []).find((s) => s.name === c.name);
+    if (flags.previous) {
+      if (!cs || !cs.restartCount) return print(`Error from server (BadRequest): previous terminated container "${c.name}" in pod "${p.metadata.name}" not found`, 'err');
+      print(esc(['exec: process exited with code 1', "(this is the PREVIOUS instance's log — the one before the restart that bumped Restart Count)"].join('\n')));
+      onMission('logs-previous');
+      return;
+    }
+    if (cs && (cs.state === 'ImagePullBackOff' || cs.state === 'ErrImagePull'))
       return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: trying and failing to pull image`, 'err');
-    if (p.status.state === 'Pending' || p.status.state === 'ContainerCreating')
+    if (p.status.state === 'Pending' || p.status.state === 'ContainerCreating' || (p.status.state || '').startsWith('Init:'))
       return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: ContainerCreating`, 'err');
-    if (p.status.state === 'CrashLoopBackOff' || p.sim.crash) {
+    if ((cs && cs.state === 'CrashLoopBackOff') || (containers.length <= 1 && p.sim.crash)) {
       print(esc((p.sim.crashLog || ['exec: process exited with code 1', '(the container\'s main process keeps dying — that\'s what CrashLoopBackOff means)']).join('\n')));
       return;
     }
     const info = K8S_IMAGES[imageRepo(c.image)];
     print(esc((info && info.logs.length ? info.logs : ['(no logs)']).join('\n')));
+    if (flags.container && containers.length > 1) onMission('logs-c');
   }
 
   function cmdExec(print, args, flags, rest) {
@@ -1086,6 +1366,13 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const p = engine.get('Pod', ns, podName || '');
     if (!p) return print(notFound('Pod', podName || ''), 'err');
     if (p.status.state !== 'Running') return print(`error: cannot exec into a container in a ${p.status.state} pod`, 'err');
+    let target = p.spec.containers[0];
+    if (flags.container) {
+      target = p.spec.containers.find((c) => c.name === flags.container);
+      if (!target) return print(`error: container ${esc(flags.container)} not found in pod ${p.metadata.name}`, 'err');
+    } else if (p.spec.containers.length > 1) {
+      return print(`error: a container name must be specified for pod ${p.metadata.name}, choose one of: [${p.spec.containers.map((c) => c.name).join(' ')}]`, 'err');
+    }
     const cmd = (rest || []).join(' ');
     if (!cmd) return print('error: you must specify a command: kubectl exec POD -- COMMAND', 'err');
     // in-cluster networking probe: wget/curl SERVICE[:PORT]
@@ -1100,7 +1387,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       const eps = engine.endpointsOf(svc);
       if (!eps.length) return print(`wget: can't connect to remote host ${svc.spec.clusterIP}: Connection refused\n<span class='info'>The Service has NO endpoints — its selector matches no ready pod. Debug: kubectl describe svc ${esc(host)} ; kubectl get pods --show-labels</span>`, 'err');
       const backend = eps[0];
-      const bc = backend.spec.containers[0];
+      // the container that actually serves the targetPort (falls back to the first container)
+      const bc = backend.spec.containers.find((x) => x.ports && x.ports.some((pt) => Number(pt.containerPort) === Number(svc.spec.ports[0].targetPort))) || backend.spec.containers[0];
       const serving = bc.ports && bc.ports[0] ? Number(bc.ports[0].containerPort) : (K8S_IMAGES[imageRepo(bc.image)] || {}).port;
       if (serving && Number(svc.spec.ports[0].targetPort) !== serving)
         return print(`wget: can't connect to remote host ${backend.status.podIP}: Connection refused\n<span class='info'>The Service HAS endpoints, but its targetPort (${svc.spec.ports[0].targetPort}) isn't the port the container actually serves on (${serving}). port = where the Service listens; targetPort = where the pod listens.</span>`, 'err');
@@ -1115,7 +1403,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (cmd.startsWith('ls')) return print("bin  dev  etc  home  proc  root  sys  tmp  usr  var\n<span class='info'>That's the container's OWN filesystem (its image layers) — not your laptop's.</span>");
     if (cmd === 'hostname') return print(p.metadata.name);
     if (cmd.startsWith('env')) {
-      const c = p.spec.containers[0];
+      const c = target;
       const lines = [];
       let fromConfig = false;
       for (const ef of c.envFrom || []) {
@@ -1138,7 +1426,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     if (cmd.startsWith('cat ')) {
       const path = cmd.slice(4).trim();
-      const c = p.spec.containers[0];
+      const c = target;
       for (const m of c.volumeMounts || []) {
         if (!path.startsWith(m.mountPath + '/')) continue;
         const key = path.slice(m.mountPath.length + 1);
@@ -1155,7 +1443,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       }
       return print(`cat: can't open '${esc(path)}': No such file or directory`, 'err');
     }
-    if (cmd.includes('ps')) return print("PID   USER   COMMAND\n1     root   " + esc((p.spec.containers[0].command || [imageRepo(engine.podImage(p))]).join(' ')) + "\n<span class='info'>PID 1 inside! The PID namespace hides all other host processes.</span>");
+    if (cmd.includes('ps')) return print("PID   USER   COMMAND\n1     root   " + esc((target.command || [imageRepo(target.image)]).join(' ')) + "\n<span class='info'>PID 1 inside! The PID namespace hides all other host processes.</span>");
     print("(simulated) executed '" + esc(cmd) + "' inside " + esc(p.metadata.name));
   }
 
@@ -1365,7 +1653,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
           else print(html, cls);
         };
 
-    const t = cmd.split(/\s+/).filter(Boolean);
+    const t = splitQuoted(cmd.trim());
     if (!t.length) return;
     if (t[0] === 'help') return print(HELP, 'info');
     if (t[0] === 'docker')
@@ -1379,7 +1667,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
 
     if (verb === 'get') cmdGet(out, args, flags);
     else if (verb === 'describe') cmdDescribe(out, args, flags);
-    else if (verb === 'create') cmdCreate(out, args, flags);
+    else if (verb === 'create') cmdCreate(out, args, flags, rest);
     else if (verb === 'run') cmdRun(out, args, flags, rest);
     else if (verb === 'apply') cmdApply(out, args, flags);
     else if (verb === 'delete') cmdDelete(out, args, flags);
