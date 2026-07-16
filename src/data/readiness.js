@@ -4,6 +4,7 @@ import { CKAD_LABS } from './ckadLabs.js';
 import { CKA_LABS } from './ckaLabs.js';
 import { NET_LABS } from './netLabs.js';
 import { OPS_LABS } from './opsLabs.js';
+import { POD_LABS } from './podLabs.js';
 
 /**
  * Per-exam-domain readiness — pure functions over progress state so the
@@ -30,6 +31,7 @@ export const PRACTICE_SOURCES = [
   { key: 'ops/pdb', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'pdb'), done: (p) => (p.opsDone.pdb || []).length },
   { key: 'ops/upgrade', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'upgrade'), done: (p) => (p.opsDone.upgrade || []).length },
   { key: 'ops/etcd', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'etcd'), done: (p) => (p.opsDone.etcd || []).length },
+  { key: 'pod/sidecars', cka: null, ckad: 'design', total: labMissions(POD_LABS, 'sidecars'), done: (p) => (p.podDone.sidecars || []).length },
 ];
 
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : null);
@@ -63,7 +65,7 @@ export function examSignal(exam, domainId, examResults) {
 
 /**
  * Full readiness for one exam.
- * progress = { scenariosDone, ckadDone, ckaDone, netDone, opsDone, quizStats, examResults }
+ * progress = { scenariosDone, ckadDone, ckaDone, netDone, opsDone, podDone, quizStats, examResults }
  */
 export function examReadiness(exam, progress) {
   const domains = EXAMS[exam].domains.map(({ id, weight }) => {

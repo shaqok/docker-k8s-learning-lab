@@ -119,7 +119,7 @@ describe('quiz v2 bank', () => {
 
 describe('readiness', () => {
   const emptyProgress = {
-    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {},
+    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {}, podDone: {},
     quizStats: {}, examResults: [],
   };
 
