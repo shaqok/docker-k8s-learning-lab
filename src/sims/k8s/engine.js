@@ -152,7 +152,7 @@ export function createEngine({ onMission = () => {} } = {}) {
     });
   }
 
-  function makePod({ name, ns = 'default', labels = {}, image, command = null, owner = null, rsName = null, nodeName = null, system = false, v2 = false, tolerations = [], nodeSelector = null, affinity = null, readinessProbe = null, livenessProbe = null, resources = null, env = null, envFrom = null, volumeMounts = null, volumes = null, containerPort = null, crash = false, notReadyReason = null, containers = null, initContainers = null }) {
+  function makePod({ name, ns = 'default', labels = {}, image, command = null, owner = null, ownerKind = null, ownerReferences = null, rsName = null, nodeName = null, system = false, v2 = false, tolerations = [], nodeSelector = null, affinity = null, readinessProbe = null, livenessProbe = null, resources = null, env = null, envFrom = null, volumeMounts = null, volumes = null, containerPort = null, crash = false, notReadyReason = null, containers = null, initContainers = null, restartPolicy = 'Always' }) {
     const cname = owner ? owner.split('/').pop() : imageRepo(image) || 'app';
     // `containers` (an explicit array) is how a multi-container pod is built; every existing
     // single-container caller keeps passing flat scalar args, which become a one-element array.
@@ -170,9 +170,10 @@ export function createEngine({ onMission = () => {} } = {}) {
     const running = !!nodeName;
     return put({
       apiVersion: 'v1', kind: 'Pod',
-      metadata: { name, namespace: ns, labels, creationTimestamp: Date.now() },
+      metadata: { name, namespace: ns, labels, creationTimestamp: Date.now(), ...(ownerReferences ? { ownerReferences } : {}) },
       spec: {
         nodeName,
+        restartPolicy,
         ...(initContainers && initContainers.length ? { initContainers } : {}),
         containers: built,
         ...(volumes ? { volumes } : {}),
@@ -186,7 +187,7 @@ export function createEngine({ onMission = () => {} } = {}) {
         containerStatuses: built.map((c) => ({ name: c.name, ready: running, restartCount: 0, state: running ? 'Running' : 'Waiting' })),
         ...(initContainers && initContainers.length ? { initContainerStatuses: initContainers.map((c) => ({ name: c.name, ready: running, state: running ? 'Terminated' : 'Waiting' })) } : {}),
       },
-      sim: { owner, rsName, system, v2, crash, notReadyReason, born: Date.now(), app: 'ok', memMi: running ? built.reduce((s, c) => s + baseMemOf(c.image), 0) : 0, containers: {} },
+      sim: { owner, ownerKind, rsName, system, v2, crash, notReadyReason, born: Date.now(), app: 'ok', memMi: running ? built.reduce((s, c) => s + baseMemOf(c.image), 0) : 0, containers: {} },
     });
   }
 
@@ -203,27 +204,119 @@ export function createEngine({ onMission = () => {} } = {}) {
       ...(livenessProbe ? { livenessProbe } : {}),
       ...(volumeMounts ? { volumeMounts } : {}),
     }];
-    return put({
+    const template = {
+      metadata: { labels: { ...podLabels } },
+      spec: {
+        ...(initContainers && initContainers.length ? { initContainers } : {}),
+        containers: built,
+        ...(volumes ? { volumes } : {}),
+        ...(tolerations && tolerations.length ? { tolerations } : {}),
+        ...(nodeSelector ? { nodeSelector } : {}),
+        ...(affinity ? { affinity } : {}),
+      },
+    };
+    const dep = put({
       apiVersion: 'apps/v1', kind: 'Deployment',
       metadata: { name, namespace: ns, labels: { ...podLabels }, creationTimestamp: Date.now() },
-      spec: {
-        replicas,
-        selector: { matchLabels: { ...podLabels } },
-        template: {
-          metadata: { labels: { ...podLabels } },
-          spec: {
-            ...(initContainers && initContainers.length ? { initContainers } : {}),
-            containers: built,
-            ...(volumes ? { volumes } : {}),
-            ...(tolerations && tolerations.length ? { tolerations } : {}),
-            ...(nodeSelector ? { nodeSelector } : {}),
-            ...(affinity ? { affinity } : {}),
-          },
-        },
-      },
+      spec: { replicas, selector: { matchLabels: { ...podLabels } }, template },
       status: {},
-      sim: { revision: 1, rsName: name + '-' + rid(9), history: [{ rev: 1, image: built[0].image, at: Date.now() }] },
+      sim: { revision: 1, rsName: null, history: [] },
     });
+    // a Deployment creates its ReplicaSet immediately (real k8s does too) — the RS
+    // controller (reconcileReplicaSet) creates the actual pods over subsequent ticks.
+    const rsName = name + '-' + rid(9);
+    dep.sim.rsName = rsName;
+    makeReplicaSet({
+      name: rsName, ns, labels: podLabels, replicas,
+      selector: podLabels, template: JSON.parse(JSON.stringify(template)),
+      ownerName: name, revision: 1,
+    });
+    dep.sim.history.push({ rev: 1, image: built[0].image, at: Date.now() });
+    return dep;
+  }
+
+  /** ReplicaSet — real stored object; the RS (not the Deployment) creates/scales its own pods. */
+  function makeReplicaSet({ name, ns = 'default', labels = {}, replicas = 0, selector, template, ownerName = null, revision = 1 }) {
+    return put({
+      apiVersion: 'apps/v1', kind: 'ReplicaSet',
+      metadata: {
+        name, namespace: ns, labels: { ...labels }, creationTimestamp: Date.now(),
+        ownerReferences: ownerName ? [{ apiVersion: 'apps/v1', kind: 'Deployment', name: ownerName }] : [],
+      },
+      spec: { replicas, selector: { matchLabels: { ...selector } }, template },
+      status: {},
+      sim: { revision },
+    });
+  }
+
+  /** Every ReplicaSet a Deployment currently owns (including scaled-to-0 past revisions). */
+  function replicaSetsOf(dep) {
+    return list('ReplicaSet', { ns: dep.metadata.namespace })
+      .filter((rs) => (rs.metadata.ownerReferences || []).some((o) => o.kind === 'Deployment' && o.name === dep.metadata.name));
+  }
+
+  /** Deep-comparable fingerprint of a pod template, ignoring metadata — same shape used by kubectl's apply-diff. */
+  function templateKey(spec) {
+    return JSON.stringify({
+      containers: spec.containers, initContainers: spec.initContainers || null, volumes: spec.volumes || null,
+      affinity: spec.affinity || null, tolerations: spec.tolerations || null, nodeSelector: spec.nodeSelector || null,
+    });
+  }
+
+  /**
+   * The ONE place a Deployment gets a new revision: creates a fresh ReplicaSet for its
+   * CURRENT spec.template (start at 0 replicas — reconcile()'s rolling-update loop ramps
+   * it up while scaling the old ReplicaSet down) and records history. Callers (kubectl's
+   * `set image`/`apply -f`) mutate `dep.spec.template` first, then call this.
+   */
+  function rotateDeployment(dep) {
+    dep.sim.revision++;
+    const rsName = dep.metadata.name + '-' + rid(9);
+    dep.sim.rsName = rsName; // the authoritative pointer to the current ReplicaSet
+    makeReplicaSet({
+      name: rsName, ns: dep.metadata.namespace, labels: dep.spec.template.metadata.labels,
+      replicas: 0, selector: dep.spec.selector.matchLabels,
+      template: JSON.parse(JSON.stringify(dep.spec.template)),
+      ownerName: dep.metadata.name, revision: dep.sim.revision,
+    });
+    dep.sim.history.push({ rev: dep.sim.revision, image: depImage(dep), at: Date.now() });
+  }
+
+  /**
+   * Self-healing lookup for the Deployment's current ReplicaSet — like real k8s, if the
+   * one `dep.sim.rsName` names was deleted out from under it, the controller doesn't
+   * strand or silently fall back to an unrelated (possibly stale-image) ReplicaSet: it
+   * re-adopts any existing RS whose template still matches, or creates a fresh one at
+   * the SAME revision (a recreate, not a rollout — history/revision don't change).
+   */
+  function ensureCurrentReplicaSet(dep) {
+    const rsList = replicaSetsOf(dep);
+    let cur = rsList.find((rs) => rs.metadata.name === dep.sim.rsName);
+    if (!cur) {
+      const key = templateKey(dep.spec.template.spec);
+      cur = rsList.find((rs) => templateKey(rs.spec.template.spec) === key) || makeReplicaSet({
+        name: dep.metadata.name + '-' + rid(9), ns: dep.metadata.namespace, labels: dep.spec.template.metadata.labels,
+        replicas: 0, selector: dep.spec.selector.matchLabels,
+        template: JSON.parse(JSON.stringify(dep.spec.template)),
+        ownerName: dep.metadata.name, revision: dep.sim.revision,
+      });
+      dep.sim.rsName = cur.metadata.name;
+    }
+    return cur;
+  }
+
+  /**
+   * kubectl rollout undo: restore a PAST revision's full template (not just its main
+   * image — real fidelity for multi-container Deployments) from the real stored
+   * ReplicaSet, then rotate to a new revision built from it.
+   */
+  function rollbackDeployment(dep, toRevision = null) {
+    const rsList = replicaSetsOf(dep).sort((a, b) => a.sim.revision - b.sim.revision);
+    const target = toRevision != null ? rsList.find((rs) => rs.sim.revision === toRevision) : rsList[rsList.length - 2];
+    if (!target) return null;
+    dep.spec.template = JSON.parse(JSON.stringify(target.spec.template));
+    rotateDeployment(dep);
+    return target;
   }
 
   let svcIP = 2;
@@ -248,8 +341,19 @@ export function createEngine({ onMission = () => {} } = {}) {
   makeNode({ name: 'worker-2' });
   for (const n of ['etcd', 'kube-apiserver', 'kube-scheduler', 'kube-controller-manager'])
     makePod({ name: n + '-control-plane', ns: 'kube-system', labels: { component: n, tier: 'control-plane' }, image: 'registry.k8s.io/' + n + ':v1.33.2', nodeName: 'control-plane', system: true });
+  // kube-proxy is genuinely DaemonSet-owned (one pod per node, tolerating the
+  // control-plane taint) — real k8s fidelity, not just a plain seeded pod set.
+  makeDaemonSet({
+    name: 'kube-proxy', ns: 'kube-system', labels: { 'k8s-app': 'kube-proxy' },
+    image: 'registry.k8s.io/kube-proxy:v1.33.2', tolerations: [{ operator: 'Exists', effect: 'NoSchedule' }],
+  });
   for (const node of ['control-plane', 'worker-1', 'worker-2'])
-    makePod({ name: 'kube-proxy-' + rid(5), ns: 'kube-system', labels: { 'k8s-app': 'kube-proxy' }, image: 'registry.k8s.io/kube-proxy:v1.33.2', nodeName: node, system: true });
+    makePod({
+      name: 'kube-proxy-' + rid(5), ns: 'kube-system', labels: { 'k8s-app': 'kube-proxy' },
+      image: 'registry.k8s.io/kube-proxy:v1.33.2', nodeName: node, system: true,
+      owner: 'kube-system/kube-proxy', ownerKind: 'DaemonSet',
+      ownerReferences: [{ apiVersion: 'apps/v1', kind: 'DaemonSet', name: 'kube-proxy' }],
+    });
   for (const node of ['worker-1', 'worker-2'])
     makePod({ name: 'coredns-' + rid(9) + '-' + rid(5), ns: 'kube-system', labels: { 'k8s-app': 'kube-dns' }, image: 'registry.k8s.io/coredns/coredns:v1.11.3', nodeName: node, system: true });
   for (const p of list('Pod', { ns: 'kube-system' })) { p.sim.born = CLUSTER_BORN; p.metadata.creationTimestamp = CLUSTER_BORN; }
@@ -502,7 +606,11 @@ export function createEngine({ onMission = () => {} } = {}) {
       const info = K8S_IMAGES[imageRepo(podImage(pod))];
       const cmd = (mainContainer(pod).command || []).join(' ');
       const longRunning = /sleep|tail|server|-f/.test(cmd);
-      const crashes = pod.sim.crash || /exit 1|false/.test(cmd) || (info && info.oneshot && !longRunning);
+      const fails = pod.sim.crash || /exit 1|false/.test(cmd);
+      // restartPolicy other than the default Always (Job pods) run to COMPLETION instead
+      // of looping forever — the crash-vs-succeed distinction the engine otherwise lacks.
+      if (pod.spec.restartPolicy !== 'Always' && !longRunning) { finishPod(pod, !fails); return; }
+      const crashes = fails || (info && info.oneshot && !longRunning);
       if (crashes) { crashCycle(pod); notify(); return; }
       pod.status.phase = 'Running';
       pod.status.podIP = pod.status.podIP || allocPodIP();
@@ -545,9 +653,17 @@ export function createEngine({ onMission = () => {} } = {}) {
         notify();
         return;
       }
+      const mainName = mainContainer(pod).name;
+      // restartPolicy other than the default Always (Job pods) run to COMPLETION instead
+      // of looping forever. Simplification for multi-container Job pods: the whole pod
+      // finishes once every container would (none of them stay running forever).
+      if (pod.spec.restartPolicy !== 'Always' && pod.spec.containers.every((c) => !/sleep|tail|server|-f/.test((c.command || []).join(' ')))) {
+        const anyFails = pod.spec.containers.some((c) => (c.name === mainName && pod.sim.crash) || /exit 1|false/.test((c.command || []).join(' ')));
+        finishPod(pod, !anyFails);
+        return;
+      }
       pod.status.phase = 'Running';
       pod.status.podIP = pod.status.podIP || allocPodIP();
-      const mainName = mainContainer(pod).name;
       let anyCrash = false;
       for (const c of pod.spec.containers) {
         const cs = pod.status.containerStatuses.find((s) => s.name === c.name);
@@ -569,6 +685,16 @@ export function createEngine({ onMission = () => {} } = {}) {
       recomputePodAggregate(pod);
       notify();
     }, 900 + Math.random() * 600);
+  }
+
+  /** Job-style pods (restartPolicy Never/OnFailure) run to completion instead of looping forever. */
+  function finishPod(pod, succeeded) {
+    pod.status.phase = succeeded ? 'Succeeded' : 'Failed';
+    pod.status.state = succeeded ? 'Completed' : 'Failed';
+    pod.status.ready = false;
+    for (const cs of pod.status.containerStatuses || []) { cs.state = 'Terminated'; cs.ready = false; }
+    if (!succeeded) addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'Failed', object: 'Pod/' + pod.metadata.name, message: `Container ${mainContainer(pod).name} in pod ${pod.metadata.name} exited with a non-zero status` });
+    notify();
   }
 
   function crashCycle(pod) {
@@ -849,15 +975,14 @@ export function createEngine({ onMission = () => {} } = {}) {
   }
 
   // ---------- controllers ----------
-  function podFromTemplate(dep) {
-    const t = dep.spec.template;
+  /** Build a pod from any controller's {spec.template} — ReplicaSet, DaemonSet, StatefulSet, Job. */
+  function podFromController(ctrl, podName, { owner, ownerKind, rsName = null, v2 = false, ownerReferences = null, restartPolicy = 'Always', nodeName = null } = {}) {
+    const t = ctrl.spec.template;
     const common = {
-      name: dep.sim.rsName + '-' + rid(5),
-      ns: dep.metadata.namespace,
+      name: podName,
+      ns: ctrl.metadata.namespace,
       labels: { ...t.metadata.labels },
-      owner: dep.metadata.namespace + '/' + dep.metadata.name,
-      rsName: dep.sim.rsName,
-      v2: dep.sim.revision > 1,
+      owner, ownerKind, rsName, v2, ownerReferences, restartPolicy, nodeName,
       tolerations: t.spec.tolerations || [],
       nodeSelector: t.spec.nodeSelector || null,
       affinity: t.spec.affinity || null,
@@ -891,34 +1016,86 @@ export function createEngine({ onMission = () => {} } = {}) {
     });
   }
 
+  function podFromReplicaSet(rs) {
+    const depRef = (rs.metadata.ownerReferences || []).find((o) => o.kind === 'Deployment');
+    return podFromController(rs, rs.metadata.name + '-' + rid(5), {
+      owner: depRef ? rs.metadata.namespace + '/' + depRef.name : rs.metadata.namespace + '/' + rs.metadata.name,
+      ownerKind: depRef ? 'Deployment' : 'ReplicaSet',
+      rsName: rs.metadata.name,
+      v2: rs.sim.revision > 1,
+      ownerReferences: [{ apiVersion: 'apps/v1', kind: 'ReplicaSet', name: rs.metadata.name }],
+    });
+  }
+
+  /**
+   * Pods a ReplicaSet/DaemonSet/StatefulSet/Job directly created. (Deployment-owned pods
+   * are found via ownedPods(dep) instead — they're one hop further, through a ReplicaSet.)
+   */
+  function podsOwnedBy(ctrl, includeTerminating = false) {
+    // like real ReplicaSet/DaemonSet/etc controllers, a pod that's drifted out of the
+    // selector (relabeled) is orphaned — it stops counting toward replicas, and a
+    // replacement gets created — even though it still carries the rsName/owner fields.
+    if (ctrl.kind === 'ReplicaSet') {
+      return list('Pod', { ns: ctrl.metadata.namespace }).filter((p) =>
+        p.sim.rsName === ctrl.metadata.name && matchesSelector(p.metadata.labels, ctrl.spec.selector.matchLabels) &&
+        (includeTerminating || (p.status.state !== 'Terminating' && p.status.state !== 'Unknown')));
+    }
+    return list('Pod', { ns: ctrl.metadata.namespace }).filter((p) =>
+      p.sim.ownerKind === ctrl.kind && p.sim.owner === ctrl.metadata.namespace + '/' + ctrl.metadata.name &&
+      matchesSelector(p.metadata.labels, ctrl.spec.selector.matchLabels) &&
+      (includeTerminating || (p.status.state !== 'Terminating' && p.status.state !== 'Unknown')));
+  }
+
+  /** The ReplicaSet controller: keep its own pod count at spec.replicas. */
+  function reconcileReplicaSet(rs) {
+    const live = podsOwnedBy(rs);
+    if (live.length < rs.spec.replicas) { podFromReplicaSet(rs); return true; }
+    if (live.length > rs.spec.replicas) { markTerminating(live[live.length - 1]); return true; }
+    return false;
+  }
+
   function reconcile() {
     let changed = false;
 
+    // Deployment controller: owns ReplicaSets (not pods directly) — surge 1 /
+    // maxUnavailable 0 rolling update by shifting replica counts between the
+    // current RS and any old ones still holding pods.
     for (const d of list('Deployment', { all: true })) {
-      const live = ownedPods(d);
-      const fresh = live.filter((p) => p.sim.rsName === d.sim.rsName && podImage(p) === depImage(d));
-      const outdated = live.filter((p) => !fresh.includes(p));
-      if (outdated.length) {
-        // rolling update, surge 1 / maxUnavailable 0: bring a new-revision pod
-        // up first; only terminate an old pod once a fresh one is Ready.
-        // A broken new image therefore wedges the rollout WITHOUT downtime.
-        const brokenOutdated = outdated.find((p) => !p.status.ready && p.status.state !== 'ContainerCreating' && p.status.state !== 'Pending');
-        if (brokenOutdated) {
-          // old-revision pods that aren't serving anyway are removed at once
-          markTerminating(brokenOutdated);
+      const cur = ensureCurrentReplicaSet(d);
+      const old = replicaSetsOf(d).filter((rs) => rs !== cur && rs.spec.replicas > 0);
+      if (old.length) {
+        const oldPods = old.flatMap((rs) => podsOwnedBy(rs));
+        const curPods = podsOwnedBy(cur);
+        const totalLive = curPods.length + oldPods.length;
+        // bring a new-revision pod up first; only scale the old ReplicaSet down
+        // once a fresh pod is Ready. A broken new image wedges the rollout WITHOUT downtime.
+        const brokenOld = oldPods.find((p) => !p.status.ready && p.status.state !== 'ContainerCreating' && p.status.state !== 'Pending');
+        if (brokenOld) {
+          // old-revision pods that aren't serving anyway are scaled away at once
+          const ownerRs = old.find((rs) => podsOwnedBy(rs).includes(brokenOld));
+          ownerRs.spec.replicas = Math.max(0, ownerRs.spec.replicas - 1);
           changed = true;
-        } else if (live.length <= d.spec.replicas && !live.some((p) => p.status.state === 'ContainerCreating' || p.status.state === 'Pending')) {
-          podFromTemplate(d);
+        } else if (totalLive <= d.spec.replicas && !curPods.some((p) => p.status.state === 'ContainerCreating' || p.status.state === 'Pending')) {
+          cur.spec.replicas++;
           changed = true;
-        } else if (live.length > d.spec.replicas && fresh.some((p) => p.status.ready)) {
-          markTerminating(outdated[0]);
+        } else if (totalLive > d.spec.replicas && curPods.some((p) => p.status.ready)) {
+          old[0].spec.replicas = Math.max(0, old[0].spec.replicas - 1);
           changed = true;
         }
         continue;
       }
-      if (live.length < d.spec.replicas) { podFromTemplate(d); changed = true; }
-      else if (live.length > d.spec.replicas) { markTerminating(live[live.length - 1]); changed = true; }
+      if (cur.spec.replicas !== d.spec.replicas) { cur.spec.replicas = d.spec.replicas; changed = true; }
     }
+
+    // ReplicaSet controller: each RS reconciles its own pods to match spec.replicas
+    for (const rs of list('ReplicaSet', { all: true })) if (reconcileReplicaSet(rs)) changed = true;
+
+    // DaemonSet / StatefulSet / Job / CronJob controllers
+    for (const ds of list('DaemonSet', { all: true })) if (reconcileDaemonSet(ds)) changed = true;
+    for (const sts of list('StatefulSet', { all: true })) if (reconcileStatefulSet(sts)) changed = true;
+    const cronNow = Date.now();
+    for (const cj of list('CronJob', { all: true })) if (reconcileCronJob(cj, cronNow)) changed = true;
+    for (const job of list('Job', { all: true })) if (reconcileJob(job)) changed = true;
 
     // kubelet: probe verdicts, memory accounting, OOMKill
     const now = Date.now();
@@ -950,6 +1127,232 @@ export function createEngine({ onMission = () => {} } = {}) {
     }
 
     if (changed) notify();
+  }
+
+  // ---------- Job / CronJob ----------
+  function makeJob({ name, ns = 'default', labels = null, completions = 1, parallelism = 1, backoffLimit = 6, image, command = null, containers = null, ownerReferences = null }) {
+    const jobLabels = labels || { 'job-name': name };
+    const built = containers || [{ name: imageRepo(image) || 'app', image, ...(command ? { command } : {}) }];
+    return put({
+      apiVersion: 'batch/v1', kind: 'Job',
+      metadata: { name, namespace: ns, labels: { ...jobLabels }, creationTimestamp: Date.now(), ...(ownerReferences ? { ownerReferences } : {}) },
+      spec: {
+        completions, parallelism, backoffLimit,
+        selector: { matchLabels: { ...jobLabels } },
+        template: { metadata: { labels: { ...jobLabels } }, spec: { containers: built } },
+      },
+      status: { succeeded: 0, failed: 0, active: 0, startTime: Date.now() },
+      sim: {},
+    });
+  }
+
+  function podFromJob(job) {
+    return podFromController(job, job.metadata.name + '-' + rid(5), {
+      owner: job.metadata.namespace + '/' + job.metadata.name,
+      ownerKind: 'Job',
+      ownerReferences: [{ apiVersion: 'batch/v1', kind: 'Job', name: job.metadata.name }],
+      restartPolicy: 'Never',
+    });
+  }
+
+  /** The Job controller: track succeeded/failed/active, create pods up to parallelism, stop at completions or backoffLimit. */
+  function reconcileJob(job) {
+    let changed = false;
+    const pods = podsOwnedBy(job, true);
+    const succeeded = pods.filter((p) => p.status.phase === 'Succeeded').length;
+    const failed = pods.filter((p) => p.status.phase === 'Failed').length;
+    const active = pods.filter((p) => p.status.state !== 'Terminating' && p.status.phase !== 'Succeeded' && p.status.phase !== 'Failed').length;
+    if (job.status.succeeded !== succeeded || job.status.failed !== failed || job.status.active !== active) {
+      job.status.succeeded = succeeded; job.status.failed = failed; job.status.active = active;
+      changed = true;
+    }
+    if (job.status.complete || job.status.jobFailed) return changed; // terminal — real Jobs don't retry past this
+    if (succeeded >= job.spec.completions) {
+      job.status.complete = true;
+      job.status.completionTime = Date.now();
+      addEvent({ ns: job.metadata.namespace, reason: 'Completed', object: 'Job/' + job.metadata.name, message: 'Job completed' });
+      return true;
+    }
+    if (failed > job.spec.backoffLimit) {
+      job.status.jobFailed = true;
+      job.status.completionTime = Date.now();
+      addEvent({ ns: job.metadata.namespace, type: 'Warning', reason: 'BackoffLimitExceeded', object: 'Job/' + job.metadata.name, message: 'Job has reached the specified backoff limit' });
+      return true;
+    }
+    const remaining = job.spec.completions - succeeded - active;
+    const toCreate = Math.max(0, Math.min(remaining, job.spec.parallelism - active));
+    for (let i = 0; i < toCreate; i++) { podFromJob(job); changed = true; }
+    return changed;
+  }
+
+  const CRON_DOW_NAMES = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
+  const CRON_MONTH_NAMES = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+  /** Real cron accepts 3-letter names for month/day-of-week (JAN, MON, ...) alongside numbers. */
+  const cronNormalizeNames = (field, names) => field.toUpperCase().replace(/[A-Z]{3}/g, (m) => (names[m] != null ? names[m] : m));
+
+  /** min hour dom month dow — supports wildcards, N, N-M, step values, and comma lists (real cron syntax). */
+  function cronFieldMatches(field, value, max) {
+    return field.split(',').some((part) => {
+      const step = part.match(/^(\*|\d+(?:-\d+)?)\/(\d+)$/);
+      if (step) {
+        const [, range, stepStr] = step;
+        const [lo, hi] = range === '*' ? [0, max] : range.split('-').map(Number);
+        return value >= lo && value <= hi && (value - lo) % Number(stepStr) === 0;
+      }
+      const range = part.match(/^(\d+)-(\d+)$/);
+      if (range) return value >= Number(range[1]) && value <= Number(range[2]);
+      if (part === '*') return true;
+      return Number(part) === value;
+    });
+  }
+  function cronMatches(schedule, date) {
+    const fields = String(schedule).trim().split(/\s+/);
+    if (fields.length !== 5) return false;
+    const [min, hour, dom, monthRaw, dowRaw] = fields;
+    const month = cronNormalizeNames(monthRaw, CRON_MONTH_NAMES);
+    const dow = cronNormalizeNames(dowRaw, CRON_DOW_NAMES);
+    if (!cronFieldMatches(min, date.getUTCMinutes(), 59)) return false;
+    if (!cronFieldMatches(hour, date.getUTCHours(), 23)) return false;
+    if (!cronFieldMatches(month, date.getUTCMonth() + 1, 12)) return false;
+    // real cron: if BOTH day-of-month and day-of-week are restricted (not '*'), a match
+    // fires when EITHER is satisfied — not only when both are, like a plain AND would.
+    const domMatch = cronFieldMatches(dom, date.getUTCDate(), 31);
+    const dowMatch = cronFieldMatches(dow, date.getUTCDay(), 6);
+    return dom !== '*' && dow !== '*' ? domMatch || dowMatch : domMatch && dowMatch;
+  }
+
+  // Real cron syntax, accelerated: 1 real/reconcile second of elapsed time = 1 virtual
+  // cron-minute, so a schedule like `*/1 * * * *` visibly fires within a normal lab
+  // session instead of requiring a literal wall-clock minute per tick.
+  const CRON_EPOCH = Date.now();
+  const CRON_MS_PER_VIRTUAL_MIN = 1000;
+  const cronVirtualDate = (now) => new Date(CRON_EPOCH + Math.floor((now - CRON_EPOCH) / CRON_MS_PER_VIRTUAL_MIN) * 60000);
+
+  function makeCronJob({ name, ns = 'default', labels = null, schedule, suspend = false, image, command = null, containers = null, completions = 1, parallelism = 1, backoffLimit = 6 }) {
+    const jobLabels = { 'job-name': name };
+    const built = containers || [{ name: imageRepo(image) || 'app', image, ...(command ? { command } : {}) }];
+    return put({
+      apiVersion: 'batch/v1', kind: 'CronJob',
+      metadata: { name, namespace: ns, labels: { ...(labels || {}) }, creationTimestamp: Date.now() },
+      spec: {
+        schedule, suspend,
+        jobTemplate: { spec: { completions, parallelism, backoffLimit, template: { metadata: { labels: jobLabels }, spec: { containers: built } } } },
+      },
+      status: {},
+      sim: { lastScheduleAt: null },
+    });
+  }
+
+  /** The CronJob controller: at most one Job per virtual minute the schedule matches. */
+  function reconcileCronJob(cj, now) {
+    if (cj.spec.suspend) return false;
+    const vDate = cronVirtualDate(now);
+    const vKey = vDate.getTime();
+    if (cj.sim.lastScheduleAt === vKey || !cronMatches(cj.spec.schedule, vDate)) return false;
+    cj.sim.lastScheduleAt = vKey;
+    const jt = cj.spec.jobTemplate.spec;
+    const jobName = cj.metadata.name + '-' + Math.floor(vKey / 60000);
+    if (get('Job', cj.metadata.namespace, jobName)) return false;
+    makeJob({
+      name: jobName, ns: cj.metadata.namespace, labels: jt.template.metadata.labels,
+      completions: jt.completions, parallelism: jt.parallelism, backoffLimit: jt.backoffLimit,
+      containers: jt.template.spec.containers,
+      ownerReferences: [{ apiVersion: 'batch/v1', kind: 'CronJob', name: cj.metadata.name }],
+    });
+    cj.status.lastScheduleTime = now;
+    addEvent({ ns: cj.metadata.namespace, reason: 'SuccessfulCreate', object: 'CronJob/' + cj.metadata.name, message: `Created job ${jobName}` });
+    return true;
+  }
+
+  // ---------- DaemonSet ----------
+  function makeDaemonSet({ name, ns = 'default', labels = null, tolerations = null, image, command = null, containers = null }) {
+    const dsLabels = labels || { app: name };
+    const built = containers || [{ name: imageRepo(image) || 'app', image, ...(command ? { command } : {}) }];
+    return put({
+      apiVersion: 'apps/v1', kind: 'DaemonSet',
+      metadata: { name, namespace: ns, labels: { ...dsLabels }, creationTimestamp: Date.now() },
+      spec: {
+        selector: { matchLabels: { ...dsLabels } },
+        template: { metadata: { labels: { ...dsLabels } }, spec: { containers: built, ...(tolerations && tolerations.length ? { tolerations } : {}) } },
+      },
+      status: {},
+      sim: {},
+    });
+  }
+
+  /** DaemonSet pods are pre-bound to a node (bypassing the normal scheduler queue), like real k8s. */
+  function podFromDaemonSet(ds, node) {
+    const p = podFromController(ds, ds.metadata.name + '-' + rid(5), {
+      owner: ds.metadata.namespace + '/' + ds.metadata.name,
+      ownerKind: 'DaemonSet',
+      ownerReferences: [{ apiVersion: 'apps/v1', kind: 'DaemonSet', name: ds.metadata.name }],
+    });
+    p.spec.nodeName = node.metadata.name;
+    startContainers(p);
+    return p;
+  }
+
+  /** The DaemonSet controller: exactly one pod per node whose taints it tolerates. */
+  function reconcileDaemonSet(ds) {
+    let changed = false;
+    const live = podsOwnedBy(ds, true);
+    const dsTolerations = ds.spec.template.spec.tolerations || [];
+    const eligible = list('Node').filter((n) => !(n.spec.taints || []).some((t) => t.effect === 'NoSchedule' && !tolerates({ spec: { tolerations: dsTolerations } }, t)));
+    for (const n of eligible) {
+      if (!live.some((p) => p.spec.nodeName === n.metadata.name && p.status.state !== 'Terminating')) { podFromDaemonSet(ds, n); changed = true; }
+    }
+    for (const p of live) {
+      if (p.status.state === 'Terminating') continue;
+      if (!eligible.some((n) => n.metadata.name === p.spec.nodeName)) { markTerminating(p); changed = true; }
+    }
+    return changed;
+  }
+
+  // ---------- StatefulSet ----------
+  function makeStatefulSet({ name, ns = 'default', labels = null, replicas = 1, image, command = null, containers = null, volumeClaimTemplates = null }) {
+    const stsLabels = labels || { app: name };
+    const built = containers || [{ name: imageRepo(image) || 'app', image, ...(command ? { command } : {}) }];
+    return put({
+      apiVersion: 'apps/v1', kind: 'StatefulSet',
+      metadata: { name, namespace: ns, labels: { ...stsLabels }, creationTimestamp: Date.now() },
+      spec: {
+        replicas, serviceName: name,
+        selector: { matchLabels: { ...stsLabels } },
+        template: { metadata: { labels: { ...stsLabels } }, spec: { containers: built } },
+        ...(volumeClaimTemplates ? { volumeClaimTemplates } : {}),
+      },
+      status: {},
+      sim: {},
+    });
+  }
+
+  const ordinalOf = (sts, pod) => Number(pod.metadata.name.slice(sts.metadata.name.length + 1));
+
+  function podFromStatefulSet(sts, ordinal) {
+    return podFromController(sts, sts.metadata.name + '-' + ordinal, {
+      owner: sts.metadata.namespace + '/' + sts.metadata.name,
+      ownerKind: 'StatefulSet',
+      ownerReferences: [{ apiVersion: 'apps/v1', kind: 'StatefulSet', name: sts.metadata.name }],
+    });
+  }
+
+  /** The StatefulSet controller: ordinal identity, OrderedReady (one at a time, in order). */
+  function reconcileStatefulSet(sts) {
+    const live = podsOwnedBy(sts, true).filter((p) => p.status.state !== 'Terminating');
+    const ordinals = live.map((p) => ordinalOf(sts, p)).sort((a, b) => a - b);
+    if (live.length < sts.spec.replicas) {
+      let next = 0;
+      while (ordinals.includes(next)) next++;
+      const prevReady = next === 0 || live.some((p) => ordinalOf(sts, p) === next - 1 && p.status.ready);
+      if (prevReady) { podFromStatefulSet(sts, next); return true; }
+      return false;
+    }
+    if (live.length > sts.spec.replicas) {
+      const highest = live.find((p) => ordinalOf(sts, p) === ordinals[ordinals.length - 1]);
+      markTerminating(highest);
+      return true;
+    }
+    return false;
   }
 
   // ---------- PodDisruptionBudgets ----------
@@ -1030,10 +1433,13 @@ export function createEngine({ onMission = () => {} } = {}) {
     // store
     get, list, put, remove, events, addEvent,
     // factories
-    makePod, makeDeployment, makeService, makeNamespace, makeNode, makeServiceAccount,
+    makePod, makeDeployment, makeReplicaSet, makeService, makeNamespace, makeNode, makeServiceAccount,
+    makeJob, makeCronJob, makeDaemonSet, makeStatefulSet,
     // helpers
-    ownedPods, endpointsOf, podImage, depImage, nodeLoad, nodeRequested,
+    ownedPods, podsOwnedBy, replicaSetsOf, endpointsOf, podImage, depImage, nodeLoad, nodeRequested,
     pdbStatus, evictionBlockedBy, snapshotStore, restoreStore,
+    rotateDeployment, rollbackDeployment, reconcileReplicaSet,
+    reconcileJob, reconcileCronJob, reconcileDaemonSet, reconcileStatefulSet, cronMatches,
     // lifecycle
     reconcile, markTerminating, flushTerminating, deletePodAndHeal, setNodeReady, deleteNamespaceContents,
     // interactive-lab ops
