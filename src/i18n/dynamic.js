@@ -24,6 +24,9 @@ export const KO_STR=[
  ["Now watch the cluster view: desired ≠ actual, so a replacement pod appears in ~1s with a NEW name. Pods are cattle, not pets.","이제 클러스터 뷰를 보세요: 원하는 상태 ≠ 실제 상태이므로 약 1초 안에 새 이름의 대체 파드가 나타납니다. 파드는 반려동물이 아니라 가축입니다."],
  [/The Service gets a stable virtual IP \+ DNS name \((.+?)\)\. Pods come and go; the Service always routes to whichever are alive\./g,"Service는 고정 가상 IP와 DNS 이름($1)을 얻습니다. 파드는 생겼다 사라지지만 Service는 항상 살아있는 파드로 라우팅합니다."],
  ["Rolling update begins: new-image pods (purple glow) are created one at a time while old ones terminate — zero downtime. Watch →","롤링 업데이트 시작: 새 이미지 파드(보라색 광)가 하나씩 생성되고 기존 파드는 종료됩니다 — 무중단 배포. 오른쪽을 보세요 →"],
+ ["A one-off run of the CronJob's template — same as if the schedule had just fired.","CronJob 템플릿을 한 번만 실행한 것입니다 — 스케줄이 방금 발동한 것과 같습니다."],
+ ["Unlike a Deployment, a Job's pod runs to completion — Succeeded, not Running forever.","Deployment와 달리 Job의 파드는 완료될 때까지 실행됩니다 — 영원히 Running이 아니라 Succeeded가 됩니다."],
+ ["The schedule is real cron syntax — this sim just runs its clock fast so you can watch it fire.","스케줄은 실제 cron 문법입니다 — 이 시뮬레이터는 발동하는 모습을 볼 수 있도록 시계만 빠르게 돌릴 뿐입니다."],
  /* module 3 narrator */
  ["Already deployed — try the other buttons, or Reset.","이미 배포되어 있어요 — 다른 버튼을 누르거나 초기화하세요."],
  ["📜 You → API server: <code>Deployment web, replicas: 3</code>. Scheduler assigns each pod to the least-loaded node; kubelets pull the image and start containers (yellow → green).","📜 나 → API 서버: <code>Deployment web, replicas: 3</code>. 스케줄러가 가장 여유 있는 노드에 파드를 배정하고, kubelet이 이미지를 받아 컨테이너를 시작합니다(노랑 → 초록)."],
