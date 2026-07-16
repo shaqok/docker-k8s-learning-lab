@@ -15,6 +15,7 @@ export const ROADMAP_EN=[
  ["User-defined networks & container DNS","m7"],
  ["docker compose for multi-service stacks","m7"],
  ["Tags, digests, pushing to a registry; ':latest' pitfalls","m7"],
+ ["Practice it live: build & cache, multi-stage slimming, volumes, networks & DNS, compose","m16"],
  ["Containerize one of your own projects end-to-end","rw"]]},
 {s:"Stage 3 · Kubernetes Core",c:"#bc8cff",note:"Goal: understand the machine — desired state, controllers, scheduling.",items:[
  ["Cluster anatomy: apiserver, etcd, scheduler, controllers, kubelet","m3"],
@@ -56,6 +57,7 @@ export const ROADMAP_EN=[
  ["Debug a broken cluster: CrashLoopBackOff, ImagePullBackOff, Pending","m10"],
  ["Empty endpoints: selector & targetPort mismatches","m10"],
  ["Probes, requests/limits, ConfigMaps & Secrets under fault injection","m11"],
+ ["Multi-container pods: sidecars & initContainers","m17"],
  ["Scheduling (taints, affinity) & RBAC with kubectl auth can-i","m12"],
  ["NetworkPolicy, Ingress & Gateway API routing","m13"],
  ["Cluster ops: drain vs PDB, kubeadm upgrade, etcd snapshot/restore","m14"],
@@ -65,11 +67,11 @@ export const ROADMAP_EN=[
 ];;
 export const ROADMAP_KO=[
 {s:"1단계 · 컨테이너 기초",note:"목표: 컨테이너를 자신 있게 실행하고, 들여다보고, 추론하기.",items:["컨테이너 vs VM — 네임스페이스 & cgroups","이미지 = 레이어 스택; 태그와 레지스트리","컨테이너 생명주기: created → running → exited → removed","CLI 숙달: run -d -p --name, ps, logs, exec, stop, rm","포트 공개 — 호스트에서 컨테이너로 curl","Dockerfile을 읽고 레이어를 예측하기","Docker Desktop 설치 후 실습 명령을 실제로 반복"]},
-{s:"2단계 · Docker 실무자",note:"목표: 사람들이 고마워할 이미지와 개발 환경 만들기.",items:["멀티 스테이지 빌드 — 툴체인 말고 앱만 배포","레이어 캐시를 살리는 Dockerfile 순서","볼륨 vs 바인드 마운트; 데이터가 실제로 사는 곳","사용자 정의 네트워크 & 컨테이너 DNS","docker compose로 멀티 서비스 스택 구성","태그, 다이제스트, 레지스트리 push; ':latest'의 함정","내 프로젝트 하나를 처음부터 끝까지 컨테이너화"]},
+{s:"2단계 · Docker 실무자",note:"목표: 사람들이 고마워할 이미지와 개발 환경 만들기.",items:["멀티 스테이지 빌드 — 툴체인 말고 앱만 배포","레이어 캐시를 살리는 Dockerfile 순서","볼륨 vs 바인드 마운트; 데이터가 실제로 사는 곳","사용자 정의 네트워크 & 컨테이너 DNS","docker compose로 멀티 서비스 스택 구성","태그, 다이제스트, 레지스트리 push; ':latest'의 함정","직접 연습하기: 빌드 & 캐시, 멀티 스테이지로 이미지 줄이기, 볼륨, 네트워크 & DNS, compose","내 프로젝트 하나를 처음부터 끝까지 컨테이너화"]},
 {s:"3단계 · 쿠버네티스 핵심",note:"목표: 기계를 이해하기 — 원하는 상태, 컨트롤러, 스케줄링.",items:["클러스터 해부: apiserver, etcd, scheduler, 컨트롤러, kubelet","Pod vs ReplicaSet vs Deployment vs Service","조정(reconciliation): 원하는 상태 vs 실제 상태","kubectl 숙달: get, describe, create, scale, delete","자가 치유: 파드를 지우고 되살아나는 걸 관찰","롤링 업데이트 & 롤백","Pending 파드와 노드 용량 (한계 너머로 스케일해 보기!)","kind/minikube 실행 — 노트북 위의 진짜 클러스터"]},
 {s:"4단계 · 쿠버네티스 운영자",note:"목표: 앱을 제대로 돌리기 — 설정, 헬스, 자원, 스토리지, 트래픽.",items:["선언적 YAML + kubectl apply; 레이블과 셀렉터","ConfigMap & Secret (그리고 Secret이 암호화가 아닌 이유)","liveness / readiness / startup 프로브","requests & limits, OOMKill, QoS 클래스","오토스케일링: HPA, VPA, Cluster Autoscaler","스토리지: PVC → StorageClass → PV; StatefulSet","Service 타입과 Ingress","Job, CronJob, DaemonSet","kind 위에 프로브와 limits를 갖춘 2계층 앱 배포"]},
 {s:"5단계 · 프로덕션 & 전문가",note:"목표: 쿠버네티스를 플랫폼으로 운영하기 — 안전하게, 관측 가능하게, 반복 가능하게.",items:["Helm: 차트로 설치와 템플릿화","Argo CD / Flux로 GitOps","관측성: Prometheus, Grafana, 로그, 이벤트","RBAC, ServiceAccount, securityContext","NetworkPolicy & Pod Security Standards","CRD & Operator — API 확장하기","클러스터 운영: 업그레이드, drain, etcd 백업","CKAD → CKA → CKS 자격증"]},
 {s:"6단계 · GPU & ML 인프라",note:"목표: ML 워크로드가 GPU를 얻고, 나누고, 갈아 넣는 방식 이해하기.",items:["NVIDIA Container Toolkit; --gpus; 드라이버 vs CUDA 런타임","Device plugin & nvidia.com/gpu 스케줄링","Pending GPU 파드, 빈 패킹, GPU 통째 할당","GPU 공유: MIG vs 타임슬라이싱","GPU Operator & DCGM 모니터링","분산 학습: NCCL, torchrun, 갱 스케줄링, Kueue","저렴한 스팟 GPU(T4)를 빌려 --gpus 실전 실행"]},
-{s:"7단계 · 자격증 — CKA / CKAD",note:"목표: 지식을 합격 점수로 바꾸기 — 고장 난 클러스터, 시간 제한 과제, 손에 익은 명령어.",items:["고장 난 클러스터 디버깅: CrashLoopBackOff, ImagePullBackOff, Pending","빈 엔드포인트: selector와 targetPort 불일치","프로브, requests/limits, ConfigMap & Secret — 장애 주입 환경에서","스케줄링(taint, affinity)과 RBAC — kubectl auth can-i","NetworkPolicy, Ingress & Gateway API 라우팅","클러스터 운영: drain vs PDB, kubeadm 업그레이드, etcd 스냅샷/복원","시험 도메인별로 퀴즈를 풀고 틀린 문제를 모두 복습","시간 제한 모의고사 응시; 준비도 대시보드에서 가장 약한 도메인 확인","실제 CKA 또는 CKAD를 신청하고 합격하기"]},
+{s:"7단계 · 자격증 — CKA / CKAD",note:"목표: 지식을 합격 점수로 바꾸기 — 고장 난 클러스터, 시간 제한 과제, 손에 익은 명령어.",items:["고장 난 클러스터 디버깅: CrashLoopBackOff, ImagePullBackOff, Pending","빈 엔드포인트: selector와 targetPort 불일치","프로브, requests/limits, ConfigMap & Secret — 장애 주입 환경에서","멀티 컨테이너 파드: 사이드카 & initContainer","스케줄링(taint, affinity)과 RBAC — kubectl auth can-i","NetworkPolicy, Ingress & Gateway API 라우팅","클러스터 운영: drain vs PDB, kubeadm 업그레이드, etcd 스냅샷/복원","시험 도메인별로 퀴즈를 풀고 틀린 문제를 모두 복습","시간 제한 모의고사 응시; 준비도 대시보드에서 가장 약한 도메인 확인","실제 CKA 또는 CKAD를 신청하고 합격하기"]},
 ];;
-export const MODNAMES={en:{m1:"Containers 101",m2:"Docker Lab",m3:"K8s Concepts",m4:"K8s Lab",m5:"GPU Module",m6:"Quiz",m7:"Docker in Depth",m8:"Operator Toolkit",m9:"Production",m10:"Troubleshooting",m11:"CKAD Drills",m12:"CKA Drills",m13:"Networking Drills",m14:"Cluster Ops Drills",m15:"Exam Room",rw:"🌍 real world"},ko:{m1:"컨테이너 101",m2:"Docker 실습",m3:"K8s 개념",m4:"K8s 실습",m5:"GPU 모듈",m6:"퀴즈",m7:"Docker 심화",m8:"운영 툴킷",m9:"프로덕션",m10:"트러블슈팅",m11:"CKAD 드릴",m12:"CKA 드릴",m13:"네트워킹 드릴",m14:"클러스터 운영 드릴",m15:"시험장",rw:"🌍 실전"}};
+export const MODNAMES={en:{m1:"Containers 101",m2:"Docker Lab",m3:"K8s Concepts",m4:"K8s Lab",m5:"GPU Module",m6:"Quiz",m7:"Docker in Depth",m8:"Operator Toolkit",m9:"Production",m10:"Troubleshooting",m11:"CKAD Drills",m12:"CKA Drills",m13:"Networking Drills",m14:"Cluster Ops Drills",m15:"Exam Room",m16:"Docker Drills",m17:"Pod Design",rw:"🌍 real world"},ko:{m1:"컨테이너 101",m2:"Docker 실습",m3:"K8s 개념",m4:"K8s 실습",m5:"GPU 모듈",m6:"퀴즈",m7:"Docker 심화",m8:"운영 툴킷",m9:"프로덕션",m10:"트러블슈팅",m11:"CKAD 드릴",m12:"CKA 드릴",m13:"네트워킹 드릴",m14:"클러스터 운영 드릴",m15:"시험장",m16:"Docker 드릴",m17:"파드 설계",rw:"🌍 실전"}};
