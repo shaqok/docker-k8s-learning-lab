@@ -976,9 +976,15 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       return print(esc(toYaml(p)));
     }
     const psa = admitPod(engine, [{ name, image: flags.image }], ns);
-    if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+    if (!psa.allowed) {
+      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: violates PodSecurity "${psa.level}:latest": ${psa.reason}` });
+      return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+    }
     const imgCheck = checkImagePolicy(engine, flags.image, ns);
-    if (!imgCheck.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
+    if (!imgCheck.allowed) {
+      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: ${imgCheck.reason}` });
+      return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
+    }
     engine.makePod({ name, ns, labels: parseSelector(flags.labels) || { run: name }, image: flags.image, command: rest || null });
     print(`pod/${esc(name)} created`, 'ok');
     print("<span class='info'>This is a bare pod — no controller owns it. If it dies or you delete it, nothing brings it back. Deployments exist for a reason.</span>");
@@ -1010,10 +1016,16 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       const containers = (doc.spec && doc.spec.containers) || [];
       if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
       const psa = admitPod(engine, containers, dns);
-      if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+      if (!psa.allowed) {
+        engine.addEvent({ ns: dns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: violates PodSecurity "${psa.level}:latest": ${psa.reason}` });
+        return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+      }
       for (const c of containers) {
         const imgCheck = checkImagePolicy(engine, c.image, dns);
-        if (!imgCheck.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
+        if (!imgCheck.allowed) {
+          engine.addEvent({ ns: dns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: ${imgCheck.reason}` });
+          return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
+        }
       }
       const common = {
         name, ns: dns, labels: meta.labels || {},
@@ -1727,6 +1739,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const subject = parseAsSubject(flags.as);
     const ok = canI(engine, { verb, resource, subject, ns });
     onMission('can-i');
+    engine.addEvent({ ns, type: ok ? 'Normal' : 'Warning', reason: ok ? 'RBACAllowed' : 'RBACDenied', object: subject.kind + '/' + subject.name, message: `${subject.kind}:${subject.name} ${ok ? 'is allowed' : 'is forbidden'} to ${verb} ${resource} in ${ns}` });
     print(ok ? 'yes' : 'no', ok ? 'ok' : 'err');
     if (!ok) {
       print("<span class='info'>RBAC is deny-by-default: no Role/ClusterRole bound to this subject allows that verb on that resource (in this namespace). Grant it with a Role + RoleBinding.</span>");
