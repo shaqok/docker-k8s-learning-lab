@@ -12,6 +12,7 @@ import { DOCKER_MISSION_TOTAL } from '../data/dockerLabs.js';
 import { POD_MISSION_TOTAL } from '../data/podLabs.js';
 import { STORAGE_MISSION_TOTAL } from '../data/storageLabs.js';
 import { PACKAGING_MISSION_TOTAL } from '../data/packagingLabs.js';
+import { SECURITY_MISSION_TOTAL } from '../data/securityLabs.js';
 
 const RM_TOTAL = ROADMAP_EN.reduce((s, st) => s + st.items.length, 0);
 const DOCKER_TOTAL = content.en.m2.missions.length;
@@ -44,6 +45,7 @@ const NAV = [
   { id: 'm17', label: { en: '🧩 Pod Design', ko: '🧩 파드 설계' }, pill: 'pod' },
   { id: 'm18', label: { en: '💾 Storage Drills', ko: '💾 스토리지 드릴' }, pill: 'storage' },
   { id: 'm19', label: { en: '📦 Packaging & GitOps', ko: '📦 패키징 & GitOps' }, pill: 'pkg' },
+  { id: 'm20', label: { en: '🔐 Security Drills', ko: '🔐 보안 드릴' }, pill: 'sec' },
   { sec: { en: 'Check yourself', ko: '최종 점검' } },
   { id: 'm15', label: { en: '🎓 Exam Room', ko: '🎓 시험장' }, pill: 'exam' },
   { id: 'm6', label: { en: 'Quiz', ko: '퀴즈' } },
@@ -51,7 +53,7 @@ const NAV = [
 
 export default function Sidebar({ active, setActive }) {
   const { lang, toggle } = useLang();
-  const { dockerDone, k8sDone, roadmap, scenariosDone, ckadDone, ckaDone, netDone, opsDone, dockerDrillDone, podDone, storageDone, packagingDone, examResults } = useProgress();
+  const { dockerDone, k8sDone, roadmap, scenariosDone, ckadDone, ckaDone, netDone, opsDone, dockerDrillDone, podDone, storageDone, packagingDone, securityDone, examResults } = useProgress();
 
   const roadPct = Math.round((Object.values(roadmap).filter(Boolean).length / RM_TOTAL) * 100);
   const ckadCount = Object.values(ckadDone).reduce((s, ids) => s + ids.length, 0);
@@ -62,6 +64,7 @@ export default function Sidebar({ active, setActive }) {
   const podCount = Object.values(podDone).reduce((s, ids) => s + ids.length, 0);
   const storageCount = Object.values(storageDone).reduce((s, ids) => s + ids.length, 0);
   const packagingCount = Object.values(packagingDone).reduce((s, ids) => s + ids.length, 0);
+  const securityCount = Object.values(securityDone).reduce((s, ids) => s + ids.length, 0);
   const pills = {
     road: { text: roadPct + '%', done: roadPct === 100 },
     docker: { text: dockerDone.length + '/' + DOCKER_TOTAL, done: dockerDone.length === DOCKER_TOTAL },
@@ -75,6 +78,7 @@ export default function Sidebar({ active, setActive }) {
     pod: { text: podCount + '/' + POD_MISSION_TOTAL, done: podCount === POD_MISSION_TOTAL },
     storage: { text: storageCount + '/' + STORAGE_MISSION_TOTAL, done: storageCount === STORAGE_MISSION_TOTAL },
     pkg: { text: packagingCount + '/' + PACKAGING_MISSION_TOTAL, done: packagingCount === PACKAGING_MISSION_TOTAL },
+    sec: { text: securityCount + '/' + SECURITY_MISSION_TOTAL, done: securityCount === SECURITY_MISSION_TOTAL },
     exam: (() => {
       const best = examResults.reduce((b, r) => Math.max(b, r.score), 0);
       return { text: examResults.length ? best + '%' : '—', done: examResults.some((r) => r.pass) };

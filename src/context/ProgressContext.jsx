@@ -40,6 +40,9 @@ export function ProgressProvider({ children }) {
   const [packagingDone, setPackagingDone] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dk8spkg') || '{}'); } catch { return {}; }
   });
+  const [securityDone, setSecurityDone] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dk8ssec') || '{}'); } catch { return {}; }
+  });
   const [quizStats, setQuizStats] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dk8squiz') || '{}'); } catch { return {}; }
   });
@@ -147,6 +150,16 @@ export function ProgressProvider({ children }) {
     });
   }, []);
 
+  const completeSecurityMission = useCallback((labId, missionId) => {
+    setSecurityDone((prev) => {
+      const cur = prev[labId] || [];
+      if (cur.includes(missionId)) return prev;
+      const next = { ...prev, [labId]: [...cur, missionId] };
+      try { localStorage.setItem('dk8ssec', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   /** Clear one drill lab's completed missions so it can be re-attempted from scratch. */
   const makeReset = (setter, storageKey) => (labId) => {
     setter((prev) => {
@@ -164,6 +177,7 @@ export function ProgressProvider({ children }) {
   const resetPodLab = useCallback(makeReset(setPodDone, 'dk8spod'), []);
   const resetStorageLab = useCallback(makeReset(setStorageDone, 'dk8sstorage'), []);
   const resetPackagingLab = useCallback(makeReset(setPackagingDone, 'dk8spkg'), []);
+  const resetSecurityLab = useCallback(makeReset(setSecurityDone, 'dk8ssec'), []);
 
   /** Fold one quiz attempt's per-domain {r,w} deltas into the running totals. */
   const recordQuiz = useCallback((delta) => {
@@ -195,7 +209,7 @@ export function ProgressProvider({ children }) {
   }, []);
 
   return (
-    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, quizStats, recordQuiz, examResults, recordExamResult }}>
+    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, securityDone, completeSecurityMission, resetSecurityLab, quizStats, recordQuiz, examResults, recordExamResult }}>
       {children}
     </ProgressContext.Provider>
   );
