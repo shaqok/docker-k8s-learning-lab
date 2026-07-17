@@ -5,6 +5,7 @@ import { CKA_LABS } from './ckaLabs.js';
 import { NET_LABS } from './netLabs.js';
 import { OPS_LABS } from './opsLabs.js';
 import { POD_LABS } from './podLabs.js';
+import { STORAGE_LABS } from './storageLabs.js';
 import { PACKAGING_LABS } from './packagingLabs.js';
 
 /**
@@ -33,6 +34,8 @@ export const PRACTICE_SOURCES = [
   { key: 'ops/upgrade', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'upgrade'), done: (p) => (p.opsDone.upgrade || []).length },
   { key: 'ops/etcd', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'etcd'), done: (p) => (p.opsDone.etcd || []).length },
   { key: 'pod/sidecars', cka: null, ckad: 'design', total: labMissions(POD_LABS, 'sidecars'), done: (p) => (p.podDone.sidecars || []).length },
+  { key: 'storage/pvc', cka: 'storage', ckad: null, total: labMissions(STORAGE_LABS, 'pvc'), done: (p) => (p.storageDone.pvc || []).length },
+  { key: 'storage/statefulset', cka: 'storage', ckad: null, total: labMissions(STORAGE_LABS, 'statefulset'), done: (p) => (p.storageDone.statefulset || []).length },
   { key: 'pkg/helm', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'helm'), done: (p) => (p.packagingDone.helm || []).length },
   { key: 'pkg/kustomize', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'kustomize'), done: (p) => (p.packagingDone.kustomize || []).length },
   { key: 'pkg/gitops', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'gitops'), done: (p) => (p.packagingDone.gitops || []).length },

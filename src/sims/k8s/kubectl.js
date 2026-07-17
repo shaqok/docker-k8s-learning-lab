@@ -77,10 +77,13 @@ const KIND_ALIASES = {
   gatewayclass: 'GatewayClass', gatewayclasses: 'GatewayClass', gc: 'GatewayClass',
   httproute: 'HTTPRoute', httproutes: 'HTTPRoute',
   poddisruptionbudget: 'PodDisruptionBudget', poddisruptionbudgets: 'PodDisruptionBudget', pdb: 'PodDisruptionBudget',
+  persistentvolume: 'PersistentVolume', persistentvolumes: 'PersistentVolume', pv: 'PersistentVolume',
+  persistentvolumeclaim: 'PersistentVolumeClaim', persistentvolumeclaims: 'PersistentVolumeClaim', pvc: 'PersistentVolumeClaim',
+  storageclass: 'StorageClass', storageclasses: 'StorageClass', sc: 'StorageClass',
   all: 'All',
 };
-const PLURAL = { Pod: 'pods', Deployment: 'deployments.apps', ReplicaSet: 'replicasets.apps', Service: 'services', Node: 'nodes', Namespace: 'namespaces', ConfigMap: 'configmaps', Secret: 'secrets', ServiceAccount: 'serviceaccounts', Role: 'roles.rbac.authorization.k8s.io', RoleBinding: 'rolebindings.rbac.authorization.k8s.io', ClusterRole: 'clusterroles.rbac.authorization.k8s.io', ClusterRoleBinding: 'clusterrolebindings.rbac.authorization.k8s.io', NetworkPolicy: 'networkpolicies.networking.k8s.io', Ingress: 'ingresses.networking.k8s.io', Gateway: 'gateways.gateway.networking.k8s.io', GatewayClass: 'gatewayclasses.gateway.networking.k8s.io', HTTPRoute: 'httproutes.gateway.networking.k8s.io', PodDisruptionBudget: 'poddisruptionbudgets.policy' };
-const CLUSTER_SCOPED = new Set(['Node', 'Namespace', 'ClusterRole', 'ClusterRoleBinding', 'GatewayClass']);
+const PLURAL = { Pod: 'pods', Deployment: 'deployments.apps', ReplicaSet: 'replicasets.apps', Service: 'services', Node: 'nodes', Namespace: 'namespaces', ConfigMap: 'configmaps', Secret: 'secrets', ServiceAccount: 'serviceaccounts', Role: 'roles.rbac.authorization.k8s.io', RoleBinding: 'rolebindings.rbac.authorization.k8s.io', ClusterRole: 'clusterroles.rbac.authorization.k8s.io', ClusterRoleBinding: 'clusterrolebindings.rbac.authorization.k8s.io', NetworkPolicy: 'networkpolicies.networking.k8s.io', Ingress: 'ingresses.networking.k8s.io', Gateway: 'gateways.gateway.networking.k8s.io', GatewayClass: 'gatewayclasses.gateway.networking.k8s.io', HTTPRoute: 'httproutes.gateway.networking.k8s.io', PodDisruptionBudget: 'poddisruptionbudgets.policy', PersistentVolume: 'persistentvolumes', PersistentVolumeClaim: 'persistentvolumeclaims', StorageClass: 'storageclasses.storage.k8s.io' };
+const CLUSTER_SCOPED = new Set(['Node', 'Namespace', 'ClusterRole', 'ClusterRoleBinding', 'GatewayClass', 'PersistentVolume', 'StorageClass']);
 
 const parseSelector = (s) => {
   if (!s) return null;
@@ -328,6 +331,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       m.status = { replicas: pods.length, readyReplicas: pods.filter((p) => p.status.ready).length };
     }
     if (o.kind === 'Node') m.status = { conditions: [{ type: 'Ready', status: o.status.ready ? 'True' : 'False' }] };
+    if (o.kind === 'StorageClass') { m.provisioner = o.provisioner; m.reclaimPolicy = o.reclaimPolicy; m.volumeBindingMode = o.volumeBindingMode; }
+    if (o.kind === 'PersistentVolume' || o.kind === 'PersistentVolumeClaim') m.status = { ...o.status };
     return m;
   }
 
@@ -485,6 +490,15 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (kind === 'HTTPRoute')
       return print(pad('NAME', 14) + pad('HOSTNAMES', 32) + 'AGE\n' +
         objs.map((o) => pad(o.metadata.name, 14) + pad('[' + (o.spec.hostnames || []).map(esc).join(',') + ']', 32) + age(o)).join('\n'));
+    if (kind === 'StorageClass')
+      return print(pad('NAME', 18) + pad('PROVISIONER', 24) + pad('RECLAIMPOLICY', 15) + pad('VOLUMEBINDINGMODE', 19) + 'AGE\n' +
+        objs.map((o) => pad(o.metadata.name, 18) + pad(esc(o.provisioner), 24) + pad(o.reclaimPolicy, 15) + pad(o.volumeBindingMode, 19) + age(o)).join('\n'));
+    if (kind === 'PersistentVolume')
+      return print(pad('NAME', 22) + pad('CAPACITY', 10) + pad('ACCESS MODES', 14) + pad('RECLAIM POLICY', 16) + pad('STATUS', 10) + pad('CLAIM', 24) + pad('STORAGECLASS', 14) + 'AGE\n' +
+        objs.map((o) => pad(o.metadata.name, 22) + pad(o.spec.capacity.storage, 10) + pad(o.spec.accessModes.join(','), 14) + pad(o.spec.persistentVolumeReclaimPolicy, 16) + pad(o.status.phase, 10) + pad(o.spec.claimRef ? `${o.spec.claimRef.namespace}/${o.spec.claimRef.name}` : '&lt;none&gt;', 24) + pad(o.spec.storageClassName || '&lt;none&gt;', 14) + age(o)).join('\n'));
+    if (kind === 'PersistentVolumeClaim')
+      return print(pad('NAME', 16) + pad('STATUS', 10) + pad('VOLUME', 22) + pad('CAPACITY', 10) + pad('ACCESS MODES', 14) + pad('STORAGECLASS', 14) + 'AGE\n' +
+        objs.map((o) => pad(o.metadata.name, 16) + pad(o.status.phase, 10) + pad(o.spec.volumeName || '&lt;none&gt;', 22) + pad((o.status.capacity && o.status.capacity.storage) || '', 10) + pad((o.status.accessModes || []).join(','), 14) + pad(o.spec.storageClassName || '&lt;none&gt;', 14) + age(o)).join('\n'));
   }
 
   function cmdGet(print, args, flags) {
@@ -722,6 +736,25 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
           const be = (r.backendRefs || []).map((b) => `${esc(b.name)}:${b.port}${b.weight != null ? ' (weight ' + b.weight + ')' : ''}`).join(', ') || '&lt;none&gt;';
           return `  [${i}] Match: path ${esc(m)}\n      BackendRefs: ${be}`;
         }).join('\n'),
+      );
+      return;
+    }
+    if (kind === 'StorageClass') {
+      print(`Name:            ${obj.metadata.name}\nProvisioner:     ${esc(obj.provisioner)}\nReclaimPolicy:   ${obj.reclaimPolicy}\nVolumeBindingMode: ${obj.volumeBindingMode}`);
+      return;
+    }
+    if (kind === 'PersistentVolume') {
+      print(
+        `Name:            ${obj.metadata.name}\nStorageClass:    ${obj.spec.storageClassName || '&lt;none&gt;'}\nStatus:          ${obj.status.phase}\nClaim:           ${obj.spec.claimRef ? obj.spec.claimRef.namespace + '/' + obj.spec.claimRef.name : '&lt;none&gt;'}\nReclaim Policy:  ${obj.spec.persistentVolumeReclaimPolicy}\nAccess Modes:    ${obj.spec.accessModes.join(',')}\nCapacity:        ${obj.spec.capacity.storage}` +
+        (obj.sim.dynamic ? "\n<span class='info'>Dynamically provisioned by its StorageClass — nothing you created by hand.</span>" : ''),
+      );
+      return;
+    }
+    if (kind === 'PersistentVolumeClaim') {
+      const reasons = obj.sim.pendingReasons || [];
+      print(
+        `Name:            ${obj.metadata.name}\nNamespace:       ${obj.metadata.namespace}\nStorageClass:    ${obj.spec.storageClassName || '&lt;none&gt;'}\nStatus:          ${obj.status.phase}\nVolume:          ${obj.spec.volumeName || '&lt;none&gt;'}\nCapacity:        ${(obj.status.capacity && obj.status.capacity.storage) || '&lt;none&gt;'}\nAccess Modes:    ${(obj.status.accessModes || []).join(',')}` +
+        (reasons.length ? `\n<span class='info'>Pending: ${esc(reasons.join('; '))}</span>` : ''),
       );
       return;
     }
@@ -1179,7 +1212,34 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
         print("<span class='info'>Weighted backendRefs split traffic — a built-in canary. curl the route a few times and count who answers.</span>");
       return;
     }
-    print(`error: the simulator can't apply kind "${esc(kind)}" yet (supported: Pod, Deployment, Job, CronJob, DaemonSet, StatefulSet, Service, ConfigMap, Secret, Namespace, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, NetworkPolicy, Ingress, GatewayClass, Gateway, HTTPRoute, PodDisruptionBudget)`, 'err');
+    if (kind === 'StorageClass') {
+      if (!doc.provisioner) return print('error: error validating data: provisioner is required', 'err');
+      if (engine.get('StorageClass', null, name)) return print(`storageclass.storage.k8s.io/${name} unchanged`);
+      engine.makeStorageClass({ name, provisioner: doc.provisioner, reclaimPolicy: doc.reclaimPolicy || 'Delete', volumeBindingMode: doc.volumeBindingMode || 'Immediate' });
+      return print(`storageclass.storage.k8s.io/${name} created`, 'ok');
+    }
+    if (kind === 'PersistentVolume') {
+      const spec = doc.spec || {};
+      if (!spec.capacity || !spec.capacity.storage) return print('error: error validating data: spec.capacity.storage is required', 'err');
+      if (!(spec.accessModes || []).length) return print('error: error validating data: spec.accessModes is required', 'err');
+      if (engine.get('PersistentVolume', null, name)) return print(`persistentvolume/${name} unchanged`);
+      engine.makePV({ name, capacity: spec.capacity.storage, accessModes: spec.accessModes, reclaimPolicy: spec.persistentVolumeReclaimPolicy || 'Retain', storageClassName: spec.storageClassName || null });
+      print(`persistentvolume/${name} created`, 'ok');
+      print("<span class='info'>A static PV — it sits Available until a PVC's capacity/accessModes/storageClassName matches it. Watch: kubectl get pv</span>");
+      return;
+    }
+    if (kind === 'PersistentVolumeClaim') {
+      const spec = doc.spec || {};
+      if (!(spec.accessModes || []).length) return print('error: error validating data: spec.accessModes is required', 'err');
+      const reqStorage = spec.resources && spec.resources.requests && spec.resources.requests.storage;
+      if (!reqStorage) return print('error: error validating data: spec.resources.requests.storage is required', 'err');
+      if (engine.get('PersistentVolumeClaim', dns, name)) return print(`persistentvolumeclaim/${name} unchanged`);
+      engine.makePVC({ name, ns: dns, accessModes: spec.accessModes, requestStorage: reqStorage, storageClassName: spec.storageClassName || null });
+      print(`persistentvolumeclaim/${name} created`, 'ok');
+      print("<span class='info'>A PVC only REQUESTS storage — it stays Pending until a matching PersistentVolume binds (statically, or dynamically via its StorageClass). Watch: kubectl get pvc</span>");
+      return;
+    }
+    print(`error: the simulator can't apply kind "${esc(kind)}" yet (supported: Pod, Deployment, Job, CronJob, DaemonSet, StatefulSet, Service, ConfigMap, Secret, Namespace, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, NetworkPolicy, Ingress, GatewayClass, Gateway, HTTPRoute, PodDisruptionBudget, StorageClass, PersistentVolume, PersistentVolumeClaim)`, 'err');
   }
 
   function cmdApply(print, args, flags) {
@@ -1294,6 +1354,23 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       }
       engine.remove(obj);
       return print(`cronjob.batch "${obj.metadata.name}" deleted`, 'ok');
+    }
+    if (obj.kind === 'PersistentVolumeClaim') {
+      const pv = obj.spec.volumeName ? engine.get('PersistentVolume', null, obj.spec.volumeName) : null;
+      engine.remove(obj);
+      print(`persistentvolumeclaim "${obj.metadata.name}" deleted`, 'ok');
+      if (pv) {
+        if (pv.spec.persistentVolumeReclaimPolicy === 'Delete') {
+          engine.remove(pv);
+          print("<span class='info'>Reclaim policy Delete: the bound PersistentVolume (and its data) was deleted too.</span>");
+        } else {
+          pv.status.phase = 'Released';
+          pv.spec.claimRef = null;
+          engine.notify();
+          print("<span class='info'>Reclaim policy Retain: the PersistentVolume is now Released, not Available — data is kept, but it won't auto-bind to a new PVC without manual cleanup.</span>");
+        }
+      }
+      return;
     }
     if (obj.kind === 'Namespace') {
       if (obj.metadata.name === 'default' || obj.metadata.name === 'kube-system')
@@ -1438,6 +1515,25 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       }
       return print(`&lt;!DOCTYPE html&gt;\n&lt;h1&gt;Welcome to ${esc(imageRepo(engine.podImage(eps[0])))}!&lt;/h1&gt;\n<span class='ok'>← answered by ${eps[0].metadata.name} (${eps[0].status.podIP})</span>`);
     }
+    const writeMatch = cmd.match(/^(?:sh -c )?['"]?echo\s+(.+?)\s*>\s*(\S+?)['"]?$/);
+    if (writeMatch) {
+      const text = writeMatch[1].replace(/^['"]|['"]$/g, '');
+      const path = writeMatch[2];
+      for (const m of target.volumeMounts || []) {
+        if (!path.startsWith(m.mountPath + '/')) continue;
+        const key = path.slice(m.mountPath.length + 1);
+        const vol = (p.spec.volumes || []).find((v) => v.name === m.name);
+        if (vol && (vol.configMap || vol.secret)) return print(`sh: can't create ${esc(path)}: Read-only file system`, 'err');
+        if (vol && (vol.persistentVolumeClaim || vol.emptyDir || vol.hostPath)) {
+          const store = engine.resolveVolumeStore(p, m.name);
+          if (!store) return print(`sh: can't create ${esc(path)}: No such file or directory\n<span class='info'>${vol.persistentVolumeClaim ? 'This PVC is not Bound yet — kubectl get pvc' : 'volume not ready'}</span>`, 'err');
+          store.set(key, text);
+          onMission('vol-write:' + (vol.persistentVolumeClaim ? 'pvc' : vol.emptyDir ? 'emptydir' : 'hostpath'));
+          return print('');
+        }
+      }
+      return print(`sh: can't create ${esc(path)}: No such file or directory`, 'err');
+    }
     if (cmd.startsWith('ls')) return print("bin  dev  etc  home  proc  root  sys  tmp  usr  var\n<span class='info'>That's the container's OWN filesystem (its image layers) — not your laptop's.</span>");
     if (cmd === 'hostname') return print(p.metadata.name);
     if (cmd.startsWith('env')) {
@@ -1469,6 +1565,11 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
         if (!path.startsWith(m.mountPath + '/')) continue;
         const key = path.slice(m.mountPath.length + 1);
         const vol = (p.spec.volumes || []).find((v) => v.name === m.name);
+        if (vol && (vol.persistentVolumeClaim || vol.emptyDir || vol.hostPath)) {
+          const store = engine.resolveVolumeStore(p, m.name);
+          if (!store || !store.has(key)) return print(`cat: can't open '${esc(path)}': No such file or directory`, 'err');
+          return print(esc(store.get(key)));
+        }
         const src = vol && vol.configMap ? engine.get('ConfigMap', ns, vol.configMap.name) : vol && vol.secret ? engine.get('Secret', ns, vol.secret.secretName) : null;
         const data = (src && src.data) || {};
         if (!(key in data)) return print(`cat: can't open '${esc(path)}': No such file or directory\n<span class='info'>This mount serves the keys of ${vol && vol.secret ? 'Secret ' + esc(vol.secret.secretName) : 'ConfigMap ' + esc(vol && vol.configMap ? vol.configMap.name : '?')} as files: ${Object.keys(data).map(esc).join(', ') || '(none)'}</span>`, 'err');

@@ -18,6 +18,7 @@ import CkaLabs from './modules/CkaLabs.jsx';
 import NetLabs from './modules/NetLabs.jsx';
 import OpsLabs from './modules/OpsLabs.jsx';
 import PodLabs from './modules/PodLabs.jsx';
+import StorageLabs from './modules/StorageLabs.jsx';
 import PackagingLabs from './modules/PackagingLabs.jsx';
 import MockExam from './modules/MockExam.jsx';
 
@@ -38,7 +39,8 @@ const MODULES = [
   { id: 'm13', C: NetLabs },
   { id: 'm14', C: OpsLabs },
   { id: 'm17', C: PodLabs },
-  { id: 'm18', C: PackagingLabs },
+  { id: 'm18', C: StorageLabs },
+  { id: 'm19', C: PackagingLabs },
   { id: 'm15', C: MockExam },
   { id: 'm6', C: Quiz },
 ];

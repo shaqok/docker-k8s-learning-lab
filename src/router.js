@@ -21,7 +21,8 @@ export const MODULE_SLUGS = {
   m14: 'ops-drills',
   m16: 'docker-drills',
   m17: 'pod-labs',
-  m18: 'packaging-gitops',
+  m18: 'storage-labs',
+  m19: 'packaging-gitops',
   m15: 'exam-room',
   m6: 'quiz',
 };

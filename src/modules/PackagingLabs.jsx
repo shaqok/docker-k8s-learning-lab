@@ -104,12 +104,12 @@ function GitOpsPanel({ sim, lang, c }) {
 
 const PANELS = { helm: HelmPanel, kustomize: KustomizePanel, gitops: GitOpsPanel };
 
-/** Module 18 — Packaging & GitOps: Helm, Kustomize, and a GitOps drift-reconciliation lab (plan step 16). */
+/** Module 19 — Packaging & GitOps: Helm, Kustomize, and a GitOps drift-reconciliation lab (plan step 16). */
 export default function PackagingLabs() {
   const { lang } = useLang();
   const { packagingDone, completePackagingMission, resetPackagingLab } = useProgress();
-  const c = content[lang].m18;
-  const [sub, setTab] = useSubRoute('m18', (id) => PACKAGING_LABS.some((l) => l.id === id));
+  const c = content[lang].m19;
+  const [sub, setTab] = useSubRoute('m19', (id) => PACKAGING_LABS.some((l) => l.id === id));
   const tab = sub ?? PACKAGING_LABS[0].id;
 
   return (

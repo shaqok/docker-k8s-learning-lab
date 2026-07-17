@@ -119,7 +119,7 @@ describe('quiz v2 bank', () => {
 
 describe('readiness', () => {
   const emptyProgress = {
-    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {}, podDone: {}, packagingDone: {},
+    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {}, podDone: {}, storageDone: {}, packagingDone: {},
     quizStats: {}, examResults: [],
   };
 
@@ -148,11 +148,11 @@ describe('readiness', () => {
     expect(r.overall).toBeGreaterThan(0);
   });
 
-  it('storage (no practice surface) still reads quiz accuracy', () => {
+  it('storage folds its lab-mission practice signal together with quiz accuracy', () => {
     const r = examReadiness('cka', { ...emptyProgress, quizStats: { storage: { r: 4, w: 0 } } });
     const s = r.domains.find((d) => d.id === 'storage');
-    expect(s.practice).toBe(null);
+    expect(s.practice).toBe(0); // no storage lab missions completed yet
     expect(s.quiz).toBe(100);
-    expect(s.readiness).toBe(100);
+    expect(s.readiness).toBe(Math.round((0 + 100) / 2));
   });
 });

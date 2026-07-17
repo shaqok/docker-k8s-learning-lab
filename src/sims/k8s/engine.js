@@ -95,6 +95,12 @@ export function selMatch(labels = {}, sel = {}) {
 export function createEngine({ onMission = () => {} } = {}) {
   const store = new Map();
   const events = [];
+  // Durable volume bytes, independent of any pod: PV-backed data survives pod
+  // delete/recreate (keyed by PersistentVolume name); hostPath survives too
+  // (keyed by path, node-identity simplified away). emptyDir lives on the pod's
+  // own `sim` bag instead — it's meant to die with the pod.
+  const pvData = new Map();
+  const hostPathData = new Map();
   const listeners = new Set();
   const notify = () => listeners.forEach((fn) => fn());
   const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
@@ -434,6 +440,8 @@ export function createEngine({ onMission = () => {} } = {}) {
   }
 
   function nodeFor(pod) {
+    const unbound = unboundPVCRefs(pod);
+    if (unbound.length) return { node: null, reasons: [`pod has unbound immediate PersistentVolumeClaims: ${unbound.map((n) => `"${n}"`).join(', ')}`] };
     const reasons = [];
     const req = podRequests(pod);
     const fits = list('Node').filter((n) => {
@@ -1097,6 +1105,10 @@ export function createEngine({ onMission = () => {} } = {}) {
     for (const cj of list('CronJob', { all: true })) if (reconcileCronJob(cj, cronNow)) changed = true;
     for (const job of list('Job', { all: true })) if (reconcileJob(job)) changed = true;
 
+    // Storage provisioner: bind/provision PVCs (after StatefulSet may have just
+    // created ones this same tick) — before the scheduler consults their status.
+    if (reconcilePVCBinding()) changed = true;
+
     // kubelet: probe verdicts, memory accounting, OOMKill
     const now = Date.now();
     for (const p of list('Pod', { all: true })) if (tickPod(p, now)) changed = true;
@@ -1328,12 +1340,39 @@ export function createEngine({ onMission = () => {} } = {}) {
 
   const ordinalOf = (sts, pod) => Number(pod.metadata.name.slice(sts.metadata.name.length + 1));
 
+  /**
+   * One PVC per volumeClaimTemplate per ordinal, deterministically named
+   * (`<template>-<sts>-<ordinal>`, matching real k8s) so a pod recreated at the
+   * same ordinal reuses — not recreates — its claim, and therefore its data.
+   */
+  function ensureStatefulSetPVCs(sts, ordinal) {
+    const vols = [];
+    for (const vct of sts.spec.volumeClaimTemplates || []) {
+      const volName = vct.metadata.name;
+      const pvcName = `${volName}-${sts.metadata.name}-${ordinal}`;
+      if (!get('PersistentVolumeClaim', sts.metadata.namespace, pvcName)) {
+        const vspec = vct.spec || {};
+        makePVC({
+          name: pvcName, ns: sts.metadata.namespace,
+          accessModes: vspec.accessModes || ['ReadWriteOnce'],
+          requestStorage: (vspec.resources && vspec.resources.requests && vspec.resources.requests.storage) || '1Gi',
+          storageClassName: vspec.storageClassName || null,
+        });
+      }
+      vols.push({ name: volName, persistentVolumeClaim: { claimName: pvcName } });
+    }
+    return vols;
+  }
+
   function podFromStatefulSet(sts, ordinal) {
-    return podFromController(sts, sts.metadata.name + '-' + ordinal, {
+    const claimVolumes = ensureStatefulSetPVCs(sts, ordinal);
+    const p = podFromController(sts, sts.metadata.name + '-' + ordinal, {
       owner: sts.metadata.namespace + '/' + sts.metadata.name,
       ownerKind: 'StatefulSet',
       ownerReferences: [{ apiVersion: 'apps/v1', kind: 'StatefulSet', name: sts.metadata.name }],
     });
+    if (claimVolumes.length) p.spec.volumes = [...(p.spec.volumes || []), ...claimVolumes];
+    return p;
   }
 
   /** The StatefulSet controller: ordinal identity, OrderedReady (one at a time, in order). */
@@ -1353,6 +1392,149 @@ export function createEngine({ onMission = () => {} } = {}) {
       return true;
     }
     return false;
+  }
+
+  // ---------- Storage: PersistentVolume / PersistentVolumeClaim / StorageClass ----------
+  // StorageClass has no .spec in real k8s — provisioner/reclaimPolicy/volumeBindingMode
+  // are top-level fields (like Role's .rules or RoleBinding's .roleRef).
+  function makeStorageClass({ name, provisioner = 'sim.io/dynamic', reclaimPolicy = 'Delete', volumeBindingMode = 'Immediate' }) {
+    return put({
+      apiVersion: 'storage.k8s.io/v1', kind: 'StorageClass',
+      metadata: { name, creationTimestamp: Date.now() },
+      provisioner, reclaimPolicy, volumeBindingMode,
+      spec: {}, status: {}, sim: {},
+    });
+  }
+
+  function makePV({ name, capacity, accessModes = ['ReadWriteOnce'], reclaimPolicy = 'Retain', storageClassName = null }) {
+    return put({
+      apiVersion: 'v1', kind: 'PersistentVolume',
+      metadata: { name, creationTimestamp: Date.now() },
+      spec: {
+        capacity: { storage: capacity }, accessModes: [...accessModes],
+        persistentVolumeReclaimPolicy: reclaimPolicy, storageClassName: storageClassName || '',
+        claimRef: null,
+      },
+      status: { phase: 'Available' },
+      sim: {},
+    });
+  }
+
+  function makePVC({ name, ns = 'default', accessModes = ['ReadWriteOnce'], requestStorage, storageClassName = null }) {
+    return put({
+      apiVersion: 'v1', kind: 'PersistentVolumeClaim',
+      metadata: { name, namespace: ns, creationTimestamp: Date.now() },
+      spec: {
+        accessModes: [...accessModes],
+        resources: { requests: { storage: requestStorage } },
+        storageClassName: storageClassName || '',
+        volumeName: null,
+      },
+      status: { phase: 'Pending' },
+      sim: { pendingReasons: null },
+    });
+  }
+
+  /** Storage-quantity comparison ("1Gi" >= "500Mi") reuses the memory-quantity parser — same unit grammar. */
+  const storageMi = (s) => parseMem(s) || 0;
+
+  function pvMatchesPVC(pv, pvc) {
+    if (pv.status.phase !== 'Available') return false;
+    if ((pv.spec.storageClassName || '') !== (pvc.spec.storageClassName || '')) return false;
+    if (!(pvc.spec.accessModes || []).every((m) => pv.spec.accessModes.includes(m))) return false;
+    return storageMi(pv.spec.capacity.storage) >= storageMi(pvc.spec.resources.requests.storage);
+  }
+
+  function bindPVCtoPV(pvc, pv) {
+    pv.status.phase = 'Bound';
+    pv.spec.claimRef = { namespace: pvc.metadata.namespace, name: pvc.metadata.name };
+    pvc.spec.volumeName = pv.metadata.name;
+    pvc.status.phase = 'Bound';
+    pvc.status.capacity = { storage: pv.spec.capacity.storage };
+    pvc.status.accessModes = [...pv.spec.accessModes];
+    pvc.sim.pendingReasons = null;
+    addEvent({ ns: pvc.metadata.namespace, reason: 'ProvisioningSucceeded', object: 'PersistentVolumeClaim/' + pvc.metadata.name, message: `Successfully bound to PersistentVolume ${pv.metadata.name}` });
+  }
+
+  /**
+   * The provisioner controller: bind every unbound PVC to a matching static
+   * Available PV, or dynamically provision one via its StorageClass. Left
+   * Pending (with a pendingReasons-style explanation) when neither applies —
+   * mirrors the scheduler's own Pending/reasons mechanism below.
+   */
+  function reconcilePVCBinding() {
+    let changed = false;
+    for (const pvc of list('PersistentVolumeClaim', { all: true })) {
+      if (pvc.status.phase === 'Bound') continue;
+      const staticPV = list('PersistentVolume').find((pv) => pvMatchesPVC(pv, pvc));
+      if (staticPV) { bindPVCtoPV(pvc, staticPV); changed = true; continue; }
+      let reasons;
+      if (pvc.spec.storageClassName) {
+        const sc = get('StorageClass', null, pvc.spec.storageClassName);
+        if (sc) {
+          const pv = makePV({
+            name: 'pvc-' + rid(8),
+            capacity: pvc.spec.resources.requests.storage,
+            accessModes: pvc.spec.accessModes,
+            reclaimPolicy: sc.reclaimPolicy,
+            storageClassName: sc.metadata.name,
+          });
+          pv.sim.dynamic = true;
+          bindPVCtoPV(pvc, pv);
+          changed = true;
+          continue;
+        }
+        reasons = [`storageclass.storage.k8s.io "${pvc.spec.storageClassName}" not found`];
+      } else {
+        reasons = ['no persistent volumes available for this claim and no storage class is set'];
+      }
+      if (JSON.stringify(reasons) !== JSON.stringify(pvc.sim.pendingReasons || null)) {
+        pvc.sim.pendingReasons = reasons;
+        changed = true;
+        // fires once per PVC name, even though the PVC may later bind and this
+        // Pending moment stop being live-inspectable — labs can still grade "it happened"
+        onMission('pvc-pending:' + pvc.metadata.name);
+      }
+    }
+    return changed;
+  }
+
+  /** Which PVC-backed/emptyDir/hostPath volumes are still unbound — gates pod scheduling. */
+  function unboundPVCRefs(pod) {
+    const names = [];
+    for (const v of pod.spec.volumes || []) {
+      if (!v.persistentVolumeClaim) continue;
+      const pvc = get('PersistentVolumeClaim', pod.metadata.namespace, v.persistentVolumeClaim.claimName);
+      if (!pvc || pvc.status.phase !== 'Bound') names.push(v.persistentVolumeClaim.claimName);
+    }
+    return names;
+  }
+
+  /**
+   * The writable byte-store behind a mounted volume — one place both `cat` and
+   * the terminal's write path resolve through. ConfigMap/Secret mounts are
+   * handled separately (read-only, derived from those objects' `.data`).
+   */
+  function resolveVolumeStore(pod, volName) {
+    const vol = (pod.spec.volumes || []).find((v) => v.name === volName);
+    if (!vol) return null;
+    if (vol.persistentVolumeClaim) {
+      const pvc = get('PersistentVolumeClaim', pod.metadata.namespace, vol.persistentVolumeClaim.claimName);
+      const pv = pvc && pvc.spec.volumeName ? get('PersistentVolume', null, pvc.spec.volumeName) : null;
+      if (!pv) return null;
+      if (!pvData.has(pv.metadata.name)) pvData.set(pv.metadata.name, new Map());
+      return pvData.get(pv.metadata.name);
+    }
+    if (vol.emptyDir) {
+      if (!pod.sim.emptyDirData) pod.sim.emptyDirData = {};
+      if (!pod.sim.emptyDirData[volName]) pod.sim.emptyDirData[volName] = new Map();
+      return pod.sim.emptyDirData[volName];
+    }
+    if (vol.hostPath) {
+      if (!hostPathData.has(vol.hostPath.path)) hostPathData.set(vol.hostPath.path, new Map());
+      return hostPathData.get(vol.hostPath.path);
+    }
+    return null;
   }
 
   // ---------- GitOpsApp (Packaging & GitOps drill, step 16) ----------
@@ -1455,12 +1637,14 @@ export function createEngine({ onMission = () => {} } = {}) {
     get, list, put, remove, events, addEvent,
     // factories
     makePod, makeDeployment, makeReplicaSet, makeService, makeNamespace, makeNode, makeServiceAccount,
-    makeJob, makeCronJob, makeDaemonSet, makeStatefulSet, makeGitOpsApp,
+    makeJob, makeCronJob, makeDaemonSet, makeStatefulSet,
+    makeStorageClass, makePV, makePVC, makeGitOpsApp,
     // helpers
     ownedPods, podsOwnedBy, replicaSetsOf, endpointsOf, podImage, depImage, nodeLoad, nodeRequested,
     pdbStatus, evictionBlockedBy, snapshotStore, restoreStore,
     rotateDeployment, rollbackDeployment, reconcileReplicaSet,
     reconcileJob, reconcileCronJob, reconcileDaemonSet, reconcileStatefulSet, cronMatches,
+    reconcilePVCBinding, resolveVolumeStore,
     // lifecycle
     reconcile, markTerminating, flushTerminating, deletePodAndHeal, setNodeReady, deleteNamespaceContents,
     // interactive-lab ops
