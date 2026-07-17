@@ -5,6 +5,7 @@ import { K8S_NODE_CAP, K8S_NODE_ALLOC, K8S_IMAGES, imageRepo, imageKnown, qosOf 
 import { canI, parseAsSubject, normResource } from './rbac.js';
 import { canConnect } from './netpol.js';
 import { admitPod } from './podSecurity.js';
+import { checkImagePolicy } from './imagePolicy.js';
 import { resolveHttp } from './routing.js';
 import { buildKustomization } from './kustomize.js';
 
@@ -976,6 +977,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     const psa = admitPod(engine, [{ name, image: flags.image }], ns);
     if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+    const imgCheck = checkImagePolicy(engine, flags.image, ns);
+    if (!imgCheck.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
     engine.makePod({ name, ns, labels: parseSelector(flags.labels) || { run: name }, image: flags.image, command: rest || null });
     print(`pod/${esc(name)} created`, 'ok');
     print("<span class='info'>This is a bare pod — no controller owns it. If it dies or you delete it, nothing brings it back. Deployments exist for a reason.</span>");
@@ -1008,6 +1011,10 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
       const psa = admitPod(engine, containers, dns);
       if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
+      for (const c of containers) {
+        const imgCheck = checkImagePolicy(engine, c.image, dns);
+        if (!imgCheck.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
+      }
       const common = {
         name, ns: dns, labels: meta.labels || {},
         volumes: (doc.spec && doc.spec.volumes) || null,
