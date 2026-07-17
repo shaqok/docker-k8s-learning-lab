@@ -6,7 +6,7 @@ import { content } from '../content/index.js';
 import { QUIZ_BANK } from '../data/quiz.js';
 import { EXAMS, DOMAIN_LABELS } from '../data/examDomains.js';
 
-const FILTERS = ['all', 'cka', 'ckad'];
+const FILTERS = ['all', 'cka', 'ckad', 'cks'];
 
 /** Module 6 — quiz v2: domain-tagged bank, exam/domain focus, wrong-answer review, per-domain accuracy. */
 export default function Quiz() {

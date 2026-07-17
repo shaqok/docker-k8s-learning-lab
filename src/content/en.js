@@ -3530,7 +3530,7 @@ export default {
  },
  "m15": {
   "title": "🎓 Exam Room — mock exams & readiness",
-  "sub": "The Certify layer: a per-domain readiness dashboard fed by everything you've done here (lab missions, troubleshooting scenarios, quiz accuracy, past mocks), and timed CKA/CKAD mock exams graded on live cluster state — 66% to pass, partial credit per check, exactly like the real thing.",
+  "sub": "The Certify layer: a per-domain readiness dashboard fed by everything you've done here (lab missions, troubleshooting scenarios, quiz accuracy, past mocks), and timed CKA/CKAD/CKS mock exams graded on live cluster state — 66% to pass, partial credit per check, exactly like the real thing.",
   "_ncards": 0,
   "intro": [
    "Exam technique: there is NO check button during the exam. Read the task, do the work, verify it yourself (",

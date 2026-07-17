@@ -3,6 +3,7 @@ import { canI } from '../sims/k8s/rbac.js';
 import { canConnect, policiesFor } from '../sims/k8s/netpol.js';
 import { resolveHttp } from '../sims/k8s/routing.js';
 import { qosOf } from '../sims/k8s/engine.js';
+import { createSupplyChainSim } from '../sims/supplyChainSim.js';
 
 /**
  * Mock-exam task sets (improvement-plan step 9). A task looks like a scenario
@@ -598,9 +599,319 @@ const CKAD_TASKS = [
   ingressTask('net', 6),
 ];
 
+/* ----------------------------------- CKS ---------------------------------- */
+
+const CKS_TASKS = [
+  {
+    id: 'harden-api-surface',
+    domain: 'clusterSetup',
+    weight: 5,
+    brief: {
+      en: 'The API server ships with anonymous requests and profiling both enabled — needless attack surface. <b>On the control-plane, disable both: <code>--anonymous-auth=false</code> and <code>--profiling=false</code>.</b>',
+      ko: 'API 서버가 익명 요청과 profiling을 모두 켠 채로 떠 있습니다 — 불필요한 공격 표면입니다. <b>컨트롤 플레인에서 둘 다 끄세요: <code>--anonymous-auth=false</code>, <code>--profiling=false</code>.</b>',
+    },
+    setup() {},
+    checks: [
+      { desc: { en: '--anonymous-auth is false', ko: '--anonymous-auth가 false' }, test: (e, sim) => sim.host.state.clusterConfig.anonymousAuth === false },
+      { desc: { en: '--profiling is false', ko: '--profiling이 false' }, test: (e, sim) => sim.host.state.clusterConfig.profiling === false },
+    ],
+    solution: {
+      en: '<code>ssh control-plane</code>, then <code>harden anonymous-auth off</code> and <code>harden profiling off</code>. <code>kube-bench run --targets=master</code> confirms both flip to PASS.',
+      ko: '<code>ssh control-plane</code> 후 <code>harden anonymous-auth off</code>와 <code>harden profiling off</code>. <code>kube-bench run --targets=master</code>로 둘 다 PASS인지 확인.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('ssh control-plane');
+      run('harden anonymous-auth off');
+      run('harden profiling off');
+      run('exit');
+    },
+  },
+  {
+    id: 'harden-etcd-tls',
+    domain: 'clusterSetup',
+    weight: 5,
+    brief: {
+      en: 'etcd currently accepts client connections without verifying client certificates. <b>Require mutual TLS: enable <code>--client-cert-auth</code> on etcd.</b>',
+      ko: 'etcd가 클라이언트 인증서 검증 없이 연결을 받아들이고 있습니다. <b>상호 TLS를 요구하세요: etcd의 <code>--client-cert-auth</code>를 켜세요.</b>',
+    },
+    setup() {},
+    checks: [
+      { desc: { en: '--client-cert-auth is true on etcd', ko: 'etcd의 --client-cert-auth가 true' }, test: (e, sim) => sim.host.state.clusterConfig.etcdClientCertAuth === true },
+    ],
+    solution: {
+      en: '<code>ssh control-plane</code>, then <code>harden etcd-client-cert-auth on</code>.',
+      ko: '<code>ssh control-plane</code> 후 <code>harden etcd-client-cert-auth on</code>.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('ssh control-plane');
+      run('harden etcd-client-cert-auth on');
+      run('exit');
+    },
+  },
+  {
+    id: 'rbac-minimal-monitoring',
+    domain: 'clusterHardening',
+    weight: 7,
+    brief: {
+      en: 'The observability agent needs read-only access to pods in <code>monitoring</code> — nothing more. <b>Create ServiceAccount <code>otel</code> in <code>monitoring</code>, a Role <code>pod-reader</code> allowing <code>get,list</code> on <code>pods</code>, and bind them.</b> Verify with <code>kubectl auth can-i</code>.',
+      ko: '관측 에이전트는 <code>monitoring</code>의 파드에 읽기 전용 접근만 필요합니다. <b><code>monitoring</code>에 ServiceAccount <code>otel</code>, <code>pods</code>에 <code>get,list</code>를 허용하는 Role <code>pod-reader</code>를 만들고 바인딩하세요.</b> <code>kubectl auth can-i</code>로 검증.',
+    },
+    setup(engine) { engine.makeNamespace('monitoring'); },
+    checks: [
+      { desc: { en: 'ServiceAccount otel exists in monitoring', ko: 'monitoring에 ServiceAccount otel 존재' }, test: (e) => !!e.get('ServiceAccount', 'monitoring', 'otel') },
+      { desc: { en: 'otel can get and list pods in monitoring', ko: 'otel이 monitoring에서 파드 get/list 가능' }, test: (e) => canI(e, { verb: 'get', resource: 'pods', subject: { kind: 'ServiceAccount', name: 'otel', namespace: 'monitoring' }, ns: 'monitoring' }) && canI(e, { verb: 'list', resource: 'pods', subject: { kind: 'ServiceAccount', name: 'otel', namespace: 'monitoring' }, ns: 'monitoring' }) },
+      { desc: { en: 'otel can NOT delete pods (least privilege)', ko: 'otel은 파드 delete 불가 (최소 권한)' }, test: (e) => !canI(e, { verb: 'delete', resource: 'pods', subject: { kind: 'ServiceAccount', name: 'otel', namespace: 'monitoring' }, ns: 'monitoring' }) },
+    ],
+    solution: {
+      en: '<code>kubectl create sa otel -n monitoring</code>; <code>kubectl create role pod-reader --verb=get,list --resource=pods -n monitoring</code>; <code>kubectl create rolebinding otel-reader --role=pod-reader --serviceaccount=monitoring:otel -n monitoring</code>.',
+      ko: '<code>kubectl create sa otel -n monitoring</code>; <code>kubectl create role pod-reader --verb=get,list --resource=pods -n monitoring</code>; <code>kubectl create rolebinding otel-reader --role=pod-reader --serviceaccount=monitoring:otel -n monitoring</code>.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('kubectl create sa otel -n monitoring');
+      run('kubectl create role pod-reader --verb=get,list --resource=pods -n monitoring');
+      run('kubectl create rolebinding otel-reader --role=pod-reader --serviceaccount=monitoring:otel -n monitoring');
+    },
+  },
+  netpolTask('clusterHardening', 8),
+  {
+    id: 'revoke-overbroad',
+    domain: 'clusterHardening',
+    weight: 5,
+    brief: {
+      en: 'ServiceAccount <code>legacy-app</code> is bound to a ClusterRole granting <code>*</code> on <code>*</code> cluster-wide, via ClusterRoleBinding <code>legacy-admin</code> — a forgotten cluster-admin-equivalent grant. <b>Revoke it.</b> <code>legacy-app</code> must lose all access.',
+      ko: 'ServiceAccount <code>legacy-app</code>가 ClusterRoleBinding <code>legacy-admin</code>을 통해 클러스터 전역 <code>*</code>에 대한 <code>*</code>를 허용하는 ClusterRole에 바인딩되어 있습니다 — 잊혀진 cluster-admin급 권한입니다. <b>이를 회수하세요.</b> <code>legacy-app</code>은 모든 권한을 잃어야 합니다.',
+    },
+    setup(engine) {
+      engine.makeServiceAccount('legacy-app', 'default');
+      engine.put({
+        apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'ClusterRole',
+        metadata: { name: 'god-mode-cluster' },
+        rules: [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
+        spec: {}, status: {}, sim: {},
+      });
+      engine.put({
+        apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'ClusterRoleBinding',
+        metadata: { name: 'legacy-admin' },
+        roleRef: { apiGroup: 'rbac.authorization.k8s.io', kind: 'ClusterRole', name: 'god-mode-cluster' },
+        subjects: [{ kind: 'ServiceAccount', name: 'legacy-app', namespace: 'default' }],
+        spec: {}, status: {}, sim: {},
+      });
+    },
+    checks: [
+      { desc: { en: 'ClusterRoleBinding legacy-admin is gone', ko: 'ClusterRoleBinding legacy-admin 삭제됨' }, test: (e) => !e.get('ClusterRoleBinding', null, 'legacy-admin') },
+      { desc: { en: 'legacy-app can no longer get pods', ko: 'legacy-app가 더 이상 파드 get 불가' }, test: (e) => !canI(e, { verb: 'get', resource: 'pods', subject: { kind: 'ServiceAccount', name: 'legacy-app', namespace: 'default' }, ns: 'default' }) },
+    ],
+    solution: {
+      en: '<code>kubectl delete clusterrolebinding legacy-admin</code>. The ClusterRole can stay (unused, unbound); only the binding grants anything.',
+      ko: '<code>kubectl delete clusterrolebinding legacy-admin</code>. ClusterRole 자체는 남아 있어도 됩니다(바인딩되지 않으면 미사용) — 권한을 부여하는 건 바인딩뿐입니다.',
+    },
+    solve(sim, run) {
+      run('kubectl delete clusterrolebinding legacy-admin');
+    },
+  },
+  {
+    id: 'kubelet-hardening',
+    domain: 'systemHardening',
+    weight: 15,
+    brief: {
+      en: '<code>worker-1</code>\'s kubelet serves its read-only port (10255) with no authentication. <b>ssh onto it and disable it.</b> Confirm with <code>kube-bench run --targets=node</code>.',
+      ko: '<code>worker-1</code>의 kubelet이 인증 없이 읽기 전용 포트(10255)를 서비스하고 있습니다. <b>ssh로 접속해 비활성화하세요.</b> <code>kube-bench run --targets=node</code>로 확인.',
+    },
+    setup() {},
+    checks: [
+      { desc: { en: 'kubelet read-only-port is disabled', ko: 'kubelet 읽기 전용 포트 비활성화됨' }, test: (e, sim) => sim.host.state.clusterConfig.kubeletReadOnlyPort === false },
+    ],
+    solution: {
+      en: '<code>ssh worker-1</code>, then <code>harden kubelet-read-only-port off</code>.',
+      ko: '<code>ssh worker-1</code> 후 <code>harden kubelet-read-only-port off</code>.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('ssh worker-1');
+      run('harden kubelet-read-only-port off');
+      run('exit');
+    },
+  },
+  {
+    id: 'psa-migrate-payments',
+    domain: 'microserviceVuln',
+    weight: 12,
+    brief: {
+      en: 'Namespace <code>payments</code> predates any Pod Security policy — pod <code>legacy</code> runs with <code>securityContext.privileged: true</code>. <b>Enforce <code>restricted</code> on the namespace, then replace <code>legacy</code> with a compliant pod of the same name</b> (image <code>nginx</code>; <code>runAsNonRoot</code>, no privilege escalation, all capabilities dropped).',
+      ko: '네임스페이스 <code>payments</code>는 Pod Security 정책이 생기기 전부터 있었습니다 — 파드 <code>legacy</code>가 <code>securityContext.privileged: true</code>로 돌고 있습니다. <b>네임스페이스에 <code>restricted</code>를 적용한 뒤, 같은 이름으로 규정을 준수하는 파드로 교체하세요</b>(이미지 <code>nginx</code>; <code>runAsNonRoot</code>, 권한 상승 금지, 모든 capability drop).',
+    },
+    setup(engine) {
+      engine.makeNamespace('payments');
+      engine.makePod({ name: 'legacy', ns: 'payments', labels: { app: 'legacy' }, nodeName: 'worker-1', containers: [{ name: 'legacy', image: 'nginx', securityContext: { privileged: true } }] });
+    },
+    checks: [
+      { desc: { en: 'payments is labeled pod-security.kubernetes.io/enforce=restricted', ko: 'payments에 pod-security.kubernetes.io/enforce=restricted 라벨' }, test: (e) => { const ns = e.get('Namespace', null, 'payments'); return !!ns && ns.metadata.labels['pod-security.kubernetes.io/enforce'] === 'restricted'; } },
+      { desc: { en: 'pod legacy exists & Running (which proves it passed restricted admission)', ko: 'legacy 파드가 존재하고 Running (restricted 승인을 통과했다는 뜻)' }, test: (e) => { const p = e.get('Pod', 'payments', 'legacy'); return !!p && p.status.state === 'Running'; } },
+    ],
+    solution: {
+      en: '<code>kubectl label namespace payments pod-security.kubernetes.io/enforce=restricted</code>, then <code>kubectl delete pod legacy -n payments</code> (the running privileged pod is NOT retroactively evicted — admission only gates creation), then apply a replacement with <code>securityContext: {runAsNonRoot: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}</code>.',
+      ko: '<code>kubectl label namespace payments pod-security.kubernetes.io/enforce=restricted</code> 후 <code>kubectl delete pod legacy -n payments</code>(실행 중인 privileged 파드는 소급 축출되지 않습니다 — admission은 생성 시에만 걸립니다), 그다음 <code>securityContext: {runAsNonRoot: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}</code>로 교체본을 적용.',
+    },
+    solve(sim, run, settle) {
+      settle(4);
+      run('kubectl label namespace payments pod-security.kubernetes.io/enforce=restricted');
+      run('kubectl delete pod legacy -n payments');
+      settle(4);
+      sim.files.write('legacy.yaml', 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: legacy\n  namespace: payments\n  labels:\n    app: legacy\nspec:\n  containers:\n  - name: legacy\n    image: nginx\n    securityContext:\n      runAsNonRoot: true\n      allowPrivilegeEscalation: false\n      capabilities:\n        drop: [ALL]\n');
+      run('kubectl apply -f legacy.yaml');
+      settle(8);
+    },
+  },
+  {
+    id: 'psa-baseline-batch',
+    domain: 'microserviceVuln',
+    weight: 8,
+    brief: {
+      en: 'Namespace <code>batch-jobs</code> also predates any Pod Security policy — pod <code>runner</code> was created with the <code>NET_ADMIN</code> capability added, which it doesn\'t need. <b>Enforce <code>baseline</code> on the namespace (unprivileged pods without a full securityContext are still fine at this level), then replace <code>runner</code> with a compliant pod of the same name.</b>',
+      ko: '네임스페이스 <code>batch-jobs</code>도 Pod Security 정책이 생기기 전부터 있었습니다 — 파드 <code>runner</code>가 필요도 없는 <code>NET_ADMIN</code> capability를 추가한 채 생성됐습니다. <b>네임스페이스에 <code>baseline</code>을 적용하세요(이 레벨에선 securityContext가 아예 없는 무권한 파드는 괜찮습니다), 그런 뒤 같은 이름으로 규정을 준수하는 파드로 교체하세요.</b>',
+    },
+    setup(engine) {
+      engine.makeNamespace('batch-jobs');
+      engine.makePod({ name: 'runner', ns: 'batch-jobs', labels: { app: 'runner' }, nodeName: 'worker-2', containers: [{ name: 'runner', image: 'busybox', command: ['sleep', 'infinity'], securityContext: { capabilities: { add: ['NET_ADMIN'] } } }] });
+    },
+    checks: [
+      { desc: { en: 'batch-jobs is labeled pod-security.kubernetes.io/enforce=baseline', ko: 'batch-jobs에 pod-security.kubernetes.io/enforce=baseline 라벨' }, test: (e) => { const ns = e.get('Namespace', null, 'batch-jobs'); return !!ns && ns.metadata.labels['pod-security.kubernetes.io/enforce'] === 'baseline'; } },
+      { desc: { en: 'pod runner exists & Running (which proves it dropped NET_ADMIN)', ko: 'runner 파드가 존재하고 Running (NET_ADMIN을 뺐다는 뜻)' }, test: (e) => { const p = e.get('Pod', 'batch-jobs', 'runner'); return !!p && p.status.state === 'Running'; } },
+    ],
+    solution: {
+      en: '<code>kubectl label namespace batch-jobs pod-security.kubernetes.io/enforce=baseline</code>, then delete and recreate <code>runner</code> without the added capability — baseline only blocks privileged containers and a short list of dangerous capabilities, so a plain busybox pod with no securityContext at all is admitted.',
+      ko: '<code>kubectl label namespace batch-jobs pod-security.kubernetes.io/enforce=baseline</code> 후 <code>runner</code>를 추가 capability 없이 삭제·재생성 — baseline은 privileged 컨테이너와 소수의 위험한 capability만 막으므로, securityContext가 아예 없는 평범한 busybox 파드는 승인됩니다.',
+    },
+    solve(sim, run, settle) {
+      settle(4);
+      run('kubectl label namespace batch-jobs pod-security.kubernetes.io/enforce=baseline');
+      run('kubectl delete pod runner -n batch-jobs');
+      settle(4);
+      sim.files.write('runner.yaml', 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: runner\n  namespace: batch-jobs\n  labels:\n    app: runner\nspec:\n  containers:\n  - name: runner\n    image: busybox\n    command: ["sleep", "infinity"]\n');
+      run('kubectl apply -f runner.yaml');
+      settle(8);
+    },
+  },
+  {
+    id: 'supply-chain-deploy',
+    domain: 'supplyChain',
+    weight: 12,
+    createSim: createSupplyChainSim,
+    brief: {
+      en: '<code>default</code> requires verified images. <b>Build <code>checkout:v1</code> from the Dockerfile, fix its vulnerable base, scan it clean, sign it, and get it running as pod <code>checkout</code>.</b>',
+      ko: '<code>default</code>는 검증된 이미지만 허용합니다. <b>Dockerfile로 <code>checkout:v1</code>을 빌드하고, 취약한 베이스를 고치고, 깨끗하게 스캔하고, 서명한 뒤 파드 <code>checkout</code>으로 띄우세요.</b>',
+    },
+    setup(engine, files) {
+      const ns = engine.get('Namespace', null, 'default');
+      ns.metadata.labels['supplychain.sim/verify'] = 'true';
+      files.write('Dockerfile', 'FROM node:20\nCOPY . .\nCMD ["node","server.js"]\n');
+    },
+    checks: [
+      { desc: { en: 'checkout:v1 is scanned with 0 vulnerabilities', ko: 'checkout:v1이 스캔되어 취약점 0개' }, test: (e) => { const img = e.docker && e.docker.getImage('checkout:v1'); return !!(img && img.scan && img.scan.findings.length === 0); } },
+      { desc: { en: 'checkout:v1 is signed', ko: 'checkout:v1이 서명됨' }, test: (e) => { const img = e.docker && e.docker.getImage('checkout:v1'); return !!(img && img.signed); } },
+      { desc: { en: 'pod checkout is running', ko: 'checkout 파드가 실행 중' }, test: (e) => !!e.get('Pod', 'default', 'checkout') },
+    ],
+    solution: {
+      en: '<code>docker build -t checkout:v1 .</code>, <code>trivy image checkout:v1</code> (finds a CVE), switch the Dockerfile to <code>FROM node:20-alpine</code>, rebuild, rescan clean, <code>cosign sign checkout:v1</code>, then <code>kubectl run checkout --image=checkout:v1</code>.',
+      ko: '<code>docker build -t checkout:v1 .</code>, <code>trivy image checkout:v1</code>(CVE 발견), Dockerfile을 <code>FROM node:20-alpine</code>으로 바꿔 재빌드, 재스캔으로 클린 확인, <code>cosign sign checkout:v1</code>, 그다음 <code>kubectl run checkout --image=checkout:v1</code>.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('docker build -t checkout:v1 .');
+      run('trivy image checkout:v1');
+      sim.files.write('Dockerfile', 'FROM node:20-alpine\nCOPY . .\nCMD ["node","server.js"]\n');
+      run('docker build -t checkout:v1 .');
+      run('trivy image checkout:v1');
+      run('cosign sign checkout:v1');
+      run('kubectl run checkout --image=checkout:v1');
+      settle(4);
+    },
+  },
+  {
+    id: 'supply-chain-reject',
+    domain: 'supplyChain',
+    weight: 8,
+    createSim: createSupplyChainSim,
+    brief: {
+      en: '<code>default</code> requires verified images. Image <code>sidecar:v1</code> is already sitting in the registry, never scanned or signed. <b>Attempt to run it as pod <code>sidecar</code> and confirm the cluster refuses it — the pod must never exist.</b> Do not scan or sign the image; the point is proving the gate works.',
+      ko: '<code>default</code>는 검증된 이미지만 허용합니다. 이미지 <code>sidecar:v1</code>은 이미 레지스트리에 있지만 한 번도 스캔·서명되지 않았습니다. <b>파드 <code>sidecar</code>로 실행을 시도해 클러스터가 거부하는지 확인하세요 — 파드는 절대 존재하면 안 됩니다.</b> 이미지를 스캔·서명하지 마세요; 요점은 게이트가 실제로 작동함을 증명하는 것입니다.',
+    },
+    setup(engine) {
+      const ns = engine.get('Namespace', null, 'default');
+      ns.metadata.labels['supplychain.sim/verify'] = 'true';
+      engine.docker.pull('node:20');
+      engine.docker.tagImage('node:20', 'sidecar:v1');
+    },
+    checks: [
+      { desc: { en: 'pod sidecar was never created', ko: 'sidecar 파드가 생성된 적 없음' }, test: (e) => !e.get('Pod', 'default', 'sidecar') },
+      { desc: { en: 'the rejection is recorded in the event trail', ko: '거부가 이벤트 기록에 남아 있음' }, test: (e) => e.events.some((ev) => ev.reason === 'FailedCreate' && ev.object === 'Pod/sidecar') },
+    ],
+    solution: {
+      en: '<code>kubectl run sidecar --image=sidecar:v1</code> — refused with "has not been scanned". Nothing else to do; the admission gate already did its job.',
+      ko: '<code>kubectl run sidecar --image=sidecar:v1</code> — "has not been scanned"으로 거부됩니다. 더 할 일은 없습니다; admission 게이트가 이미 제 역할을 했습니다.',
+    },
+    solve(sim, run, settle) {
+      settle(2);
+      run('kubectl run sidecar --image=sidecar:v1');
+      settle(2);
+    },
+  },
+  {
+    id: 'audit-rbac',
+    domain: 'monitoring',
+    weight: 10,
+    brief: {
+      en: 'Grant ServiceAccount <code>bot</code> in <code>default</code> read access to <code>configmaps</code>, then verify it. <b>The grant must show up in the audit trail, not just exist as an unused Role.</b>',
+      ko: '<code>default</code>의 ServiceAccount <code>bot</code>에 <code>configmaps</code> 읽기 권한을 부여한 뒤 검증하세요. <b>부여한 권한은 사용되지 않는 Role로만 존재해선 안 되고 감사 기록에 남아야 합니다.</b>',
+    },
+    setup(engine) { engine.makeServiceAccount('bot', 'default'); },
+    checks: [
+      { desc: { en: 'bot can get configmaps in default', ko: 'bot이 default에서 configmaps get 가능' }, test: (e) => canI(e, { verb: 'get', resource: 'configmaps', subject: { kind: 'ServiceAccount', name: 'bot', namespace: 'default' }, ns: 'default' }) },
+      { desc: { en: 'an RBACAllowed event was recorded for bot', ko: 'bot에 대한 RBACAllowed 이벤트가 기록됨' }, test: (e) => e.events.some((ev) => ev.reason === 'RBACAllowed' && ev.object === 'ServiceAccount/bot') },
+    ],
+    solution: {
+      en: '<code>kubectl create role cm-reader --verb=get,list --resource=configmaps</code>, <code>kubectl create rolebinding bot-cm --role=cm-reader --serviceaccount=default:bot</code>, then <code>kubectl auth can-i get configmaps --as=system:serviceaccount:default:bot</code> — every can-i check is itself audited.',
+      ko: '<code>kubectl create role cm-reader --verb=get,list --resource=configmaps</code>, <code>kubectl create rolebinding bot-cm --role=cm-reader --serviceaccount=default:bot</code>, 그다음 <code>kubectl auth can-i get configmaps --as=system:serviceaccount:default:bot</code> — 모든 can-i 검사는 그 자체로 감사됩니다.',
+    },
+    solve(sim, run) {
+      run('kubectl create role cm-reader --verb=get,list --resource=configmaps');
+      run('kubectl create rolebinding bot-cm --role=cm-reader --serviceaccount=default:bot');
+      run('kubectl auth can-i get configmaps --as=system:serviceaccount:default:bot');
+    },
+  },
+  {
+    id: 'audit-psa',
+    domain: 'monitoring',
+    weight: 10,
+    brief: {
+      en: 'Namespace <code>edge</code> enforces <code>restricted</code>. <b>Attempt to run a bare pod <code>probe</code> (image <code>nginx</code>, no securityContext) there, and confirm the refusal is recorded for later investigation.</b>',
+      ko: '네임스페이스 <code>edge</code>는 <code>restricted</code>를 적용합니다. <b>거기서 아무 securityContext 없는 파드 <code>probe</code>(이미지 <code>nginx</code>)를 실행해 보고, 거부가 나중에 조사할 수 있도록 기록되는지 확인하세요.</b>',
+    },
+    setup(engine) {
+      engine.makeNamespace('edge');
+      engine.get('Namespace', null, 'edge').metadata.labels['pod-security.kubernetes.io/enforce'] = 'restricted';
+    },
+    checks: [
+      { desc: { en: 'pod probe was never created in edge', ko: 'edge에 probe 파드가 생성된 적 없음' }, test: (e) => !e.get('Pod', 'edge', 'probe') },
+      { desc: { en: 'the rejection is recorded in the event trail', ko: '거부가 이벤트 기록에 남아 있음' }, test: (e) => e.events.some((ev) => ev.reason === 'FailedCreate' && ev.object === 'Pod/probe' && /PodSecurity/.test(ev.message)) },
+    ],
+    solution: {
+      en: '<code>kubectl run probe --image=nginx -n edge</code> — refused, and the FailedCreate event is right there in <code>kubectl get events -n edge</code>.',
+      ko: '<code>kubectl run probe --image=nginx -n edge</code> — 거부되고, <code>kubectl get events -n edge</code>에 FailedCreate 이벤트가 바로 보입니다.',
+    },
+    solve(sim, run) {
+      run('kubectl run probe --image=nginx -n edge');
+    },
+  },
+];
+
 export const EXAM_SETS = {
   cka: { durationMin: 120, passPct: 66, tasks: CKA_TASKS },
   ckad: { durationMin: 120, passPct: 66, tasks: CKAD_TASKS },
+  cks: { durationMin: 120, passPct: 66, tasks: CKS_TASKS },
 };
 
 /** Grade one task: fraction of its checks passing → earned weight. */

@@ -36,7 +36,7 @@ const NAV = [
   { id: 'm9', label: { en: 'Production & Ecosystem', ko: '프로덕션 & 생태계' } },
   { sec: { en: 'Stage 6 · GPU / ML', ko: '6단계 · GPU / ML' } },
   { id: 'm5', label: { en: 'GPUs in Containers', ko: '컨테이너 속 GPU' } },
-  { sec: { en: 'Certify · CKA/CKAD', ko: '자격증 · CKA/CKAD' } },
+  { sec: { en: 'Certify · CKA/CKAD/CKS', ko: '자격증 · CKA/CKAD/CKS' } },
   { id: 'm10', label: { en: '🔧 Troubleshooting', ko: '🔧 트러블슈팅' }, pill: 'scen' },
   { id: 'm11', label: { en: '🎯 CKAD Drills', ko: '🎯 CKAD 드릴' }, pill: 'ckad' },
   { id: 'm12', label: { en: '🧲 CKA Drills', ko: '🧲 CKA 드릴' }, pill: 'cka' },

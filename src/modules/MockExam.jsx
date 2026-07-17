@@ -61,7 +61,8 @@ function ExamRunner({ exam, lang, c, onFinish, onQuit }) {
   const simsRef = useRef({});
   const getSim = (idx) => {
     if (!simsRef.current[idx]) {
-      const sim = createK8sSim({ starterFiles: {} });
+      const createSim = set.tasks[idx].createSim || createK8sSim;
+      const sim = createSim({ starterFiles: {} });
       set.tasks[idx].setup(sim.engine, sim.files);
       sim.reconcile();
       simsRef.current[idx] = sim;
@@ -229,9 +230,10 @@ export default function MockExam() {
       {view === 'home' && (
         <>
           <Rich tag="p" className="hint" content={c.intro} />
-          <div className="grid2">
+          <div className="grid3">
             <ReadinessCard exam="cka" lang={lang} c={c} progress={progress} onStart={() => start('cka')} />
             <ReadinessCard exam="ckad" lang={lang} c={c} progress={progress} onStart={() => start('ckad')} />
+            <ReadinessCard exam="cks" lang={lang} c={c} progress={progress} onStart={() => start('cks')} />
           </div>
           <h3>{c.historyTitle}</h3>
           {!progress.examResults.length && <p className="hint">{c.noHistory}</p>}

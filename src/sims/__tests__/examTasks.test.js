@@ -10,7 +10,8 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 function boot(task) {
-  const sim = createK8sSim({ starterFiles: {} });
+  const createSim = task.createSim || createK8sSim;
+  const sim = createSim({ starterFiles: {} });
   task.setup(sim.engine, sim.files);
   const runner = makeRunner(sim);
   const settle = (cycles = 30) => {
@@ -119,12 +120,12 @@ describe('quiz v2 bank', () => {
 
 describe('readiness', () => {
   const emptyProgress = {
-    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {}, podDone: {}, storageDone: {}, packagingDone: {},
+    scenariosDone: [], ckadDone: {}, ckaDone: {}, netDone: {}, opsDone: {}, podDone: {}, storageDone: {}, packagingDone: {}, securityDone: {},
     quizStats: {}, examResults: [],
   };
 
   it('is all-zero with no signals', () => {
-    for (const exam of ['cka', 'ckad']) {
+    for (const exam of ['cka', 'ckad', 'cks']) {
       const r = examReadiness(exam, emptyProgress);
       expect(r.overall).toBe(0);
       expect(r.domains.reduce((s, d) => s + d.weight, 0)).toBe(100);

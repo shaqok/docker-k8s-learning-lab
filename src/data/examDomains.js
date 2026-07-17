@@ -20,6 +20,13 @@ export const DOMAIN_LABELS = {
   env: { en: 'App Environment, Configuration and Security', ko: '앱 환경, 구성과 보안' },
   // not part of either exam — Docker/GPU foundations questions
   foundations: { en: 'Container Foundations (not on the exams)', ko: '컨테이너 기초 (시험 범위 밖)' },
+  // CKS
+  clusterSetup: { en: 'Cluster Setup', ko: '클러스터 설정' },
+  clusterHardening: { en: 'Cluster Hardening', ko: '클러스터 강화' },
+  systemHardening: { en: 'System Hardening', ko: '시스템 강화' },
+  microserviceVuln: { en: 'Minimize Microservice Vulnerabilities', ko: '마이크로서비스 취약점 최소화' },
+  supplyChain: { en: 'Supply Chain Security', ko: '공급망 보안' },
+  monitoring: { en: 'Monitoring, Logging & Runtime Security', ko: '모니터링, 로깅 & 런타임 보안' },
 };
 
 /** Per-exam domain lists with the official blueprint weights (sum 100). */
@@ -42,6 +49,17 @@ export const EXAMS = {
       { id: 'deploy', weight: 20 },
       { id: 'net', weight: 20 },
       { id: 'observe', weight: 15 },
+    ],
+  },
+  cks: {
+    label: 'CKS',
+    domains: [
+      { id: 'microserviceVuln', weight: 20 },
+      { id: 'supplyChain', weight: 20 },
+      { id: 'monitoring', weight: 20 },
+      { id: 'clusterHardening', weight: 15 },
+      { id: 'systemHardening', weight: 15 },
+      { id: 'clusterSetup', weight: 10 },
     ],
   },
 };
