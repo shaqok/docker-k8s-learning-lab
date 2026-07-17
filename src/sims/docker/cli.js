@@ -20,6 +20,8 @@ export function createDockerCli(engine, { files, onMission = () => {} }) {
     if (t[0] === 'clear') return; // handled by Terminal
     if (t[0] === 'nvidia-smi') return print("bash: nvidia-smi: command not found\n" + info('(This is the host — no GPU here. A container can have one: docker run --gpus all pytorch/pytorch nvidia-smi — see Module 5.)'), 'err');
     if (t[0] === 'curl' || t[0] === 'wget') return hostCurl(cmd, print);
+    if (t[0] === 'trivy') return doTrivy(t.slice(1), print);
+    if (t[0] === 'cosign') return doCosign(t.slice(1), print);
     if (t[0] !== 'docker') return print(`bash: ${esc(t[0])}: command not found (this simulated host speaks docker — try 'help')`, 'err');
 
     const sub = t[1];
@@ -315,6 +317,43 @@ export function createDockerCli(engine, { files, onMission = () => {} }) {
     print(pad('CREATED BY', 46) + 'SIZE\n' + [...img.layers].reverse().map((l) => pad(esc(l.instr).slice(0, 44), 46) + fmtSize(l.sizeMB)).join('\n'));
   }
 
+  /* ---------------- trivy / cosign (Supply Chain Security) ---------------- */
+
+  function doTrivy(args, print) {
+    if (args[0] !== 'image') return print(`trivy: unknown command "${esc(args[0] || '')}" (this sim knows: trivy image REF)`, 'err');
+    const ref = args[1];
+    if (!ref) return print('trivy: usage: trivy image REF', 'err');
+    const r = engine.scanImage(ref);
+    if (r.error) return print(r.error, 'err');
+    const { findings } = r;
+    if (!findings.length) {
+      print(`${esc(ref)} (scanned)\n\nTotal: 0 vulnerabilities found`, 'ok');
+    } else {
+      const head = pad('LIBRARY', 18) + pad('VULNERABILITY ID', 18) + 'SEVERITY';
+      print(`${esc(ref)}\nTotal: ${findings.length} vulnerabilities found\n\n` + head + '\n' + findings.map((f) => pad(f.pkg, 18) + pad(f.id, 18) + f.severity).join('\n'), 'err');
+    }
+    onMission('trivy-scan');
+  }
+
+  function doCosign(args, print) {
+    const sub = args[0];
+    const ref = args[1];
+    if (sub !== 'sign' && sub !== 'verify') return print(`cosign: unknown command "${esc(sub || '')}" (this sim knows: cosign sign|verify REF)`, 'err');
+    if (!ref) return print(`cosign: usage: cosign ${sub} REF`, 'err');
+    const img = engine.getImage(ref);
+    if (!img) return print(`Error: reading image ${esc(ref)}: no such image locally — docker pull/build it first`, 'err');
+    if (sub === 'sign') {
+      engine.signImage(ref);
+      print(`Pushing signature to: ${esc(img.repo)}\ncosign: signature uploaded`, 'ok');
+      onMission('cosign-sign');
+      return;
+    }
+    if (!img.signed)
+      return print(`Error: no matching signatures:\n\nno signatures found for ${esc(ref)} — cosign sign it first`, 'err');
+    print(`Verification for ${esc(ref)} --\nThe following checks were performed on each of these signatures:\n  - The cosign claims were validated\n  - The signatures were verified against the specified public key\n\n[{"critical":{"identity":{"docker-reference":"${esc(img.repo)}"}}}]`, 'ok');
+    onMission('cosign-verify');
+  }
+
   /* ---------------- volume ---------------- */
 
   function doVolume(args, print) {
@@ -397,4 +436,4 @@ function splitQuoted(s) {
   return out;
 }
 
-const HELP = "Commands:\n  docker pull|images|run|ps|stop|start|rm|rmi|logs|exec|inspect\n  docker build -t name .   (edit the Dockerfile in the Manifests pane)\n  docker tag|push|login|history\n  docker volume create|ls|rm|inspect\n  docker network create|ls|rm|connect|disconnect\n  docker compose up|down|ps|logs\n  curl localhost:PORT , nvidia-smi , clear\nExample: docker build -t web . && docker run -d -p 8080:80 --name web web";
+const HELP = "Commands:\n  docker pull|images|run|ps|stop|start|rm|rmi|logs|exec|inspect\n  docker build -t name .   (edit the Dockerfile in the Manifests pane)\n  docker tag|push|login|history\n  docker volume create|ls|rm|inspect\n  docker network create|ls|rm|connect|disconnect\n  docker compose up|down|ps|logs\n  trivy image REF , cosign sign|verify REF\n  curl localhost:PORT , nvidia-smi , clear\nExample: docker build -t web . && docker run -d -p 8080:80 --name web web";
