@@ -4,6 +4,7 @@ import { toYaml } from './yaml.js';
 import { K8S_NODE_CAP, K8S_NODE_ALLOC, K8S_IMAGES, imageRepo, imageKnown, qosOf } from './engine.js';
 import { canI, parseAsSubject, normResource } from './rbac.js';
 import { canConnect } from './netpol.js';
+import { admitPod } from './podSecurity.js';
 import { resolveHttp } from './routing.js';
 import { buildKustomization } from './kustomize.js';
 
@@ -973,6 +974,8 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       const p = { apiVersion: 'v1', kind: 'Pod', metadata: { name, namespace: ns, labels: parseSelector(flags.labels) || { run: name } }, spec: { containers: [{ name, image: flags.image, ...(rest ? { command: rest } : {}) }] } };
       return print(esc(toYaml(p)));
     }
+    const psa = admitPod(engine, [{ name, image: flags.image }], ns);
+    if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
     engine.makePod({ name, ns, labels: parseSelector(flags.labels) || { run: name }, image: flags.image, command: rest || null });
     print(`pod/${esc(name)} created`, 'ok');
     print("<span class='info'>This is a bare pod — no controller owns it. If it dies or you delete it, nothing brings it back. Deployments exist for a reason.</span>");
@@ -991,14 +994,20 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (WORKLOAD_KINDS[kind]) { WORKLOAD_KINDS[kind].applyDoc(engine, doc, dns, print); onMission('apply'); return; }
 
     if (kind === 'Namespace') {
-      if (engine.get('Namespace', null, name)) return print(`namespace/${name} unchanged`);
-      engine.makeNamespace(name);
+      const existingNs = engine.get('Namespace', null, name);
+      if (existingNs) {
+        if (meta.labels) Object.assign(existingNs.metadata.labels, meta.labels);
+        return print(`namespace/${name} configured`, 'ok');
+      }
+      engine.makeNamespace(name, undefined, meta.labels || {});
       return print(`namespace/${name} created`, 'ok');
     }
     if (kind === 'Pod') {
       if (engine.get('Pod', dns, name)) return print(`Error from server (Conflict): pods "${esc(name)}" already exists — most pod fields are immutable; delete it first`, 'err');
       const containers = (doc.spec && doc.spec.containers) || [];
       if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
+      const psa = admitPod(engine, containers, dns);
+      if (!psa.allowed) return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
       const common = {
         name, ns: dns, labels: meta.labels || {},
         volumes: (doc.spec && doc.spec.volumes) || null,
@@ -1019,6 +1028,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
           envFrom: c.envFrom || null,
           volumeMounts: c.volumeMounts || null,
           containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
+          securityContext: c.securityContext || null,
         });
       }
       onMission('apply');
@@ -1618,7 +1628,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const ns = flags.namespace || 'default';
     const kind = KIND_ALIASES[(args[1] || '').toLowerCase()];
     if (!kind) return print(`error: the server doesn't have a resource type "${esc(args[1] || '')}"`, 'err');
-    const obj = kind === 'Node' ? engine.get('Node', null, args[2] || '') : engine.get(kind, ns, args[2] || '');
+    const obj = CLUSTER_SCOPED.has(kind) ? engine.get(kind, null, args[2] || '') : engine.get(kind, ns, args[2] || '');
     if (!obj) return print(notFound(kind, args[2] || ''), 'err');
     const changes = args.slice(3);
     if (!changes.length) return print('error: at least one label update is required (key=value or key-)', 'err');
