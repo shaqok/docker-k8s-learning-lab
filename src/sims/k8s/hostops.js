@@ -32,7 +32,25 @@ function parseFlags(tokens) {
   return { args, flags };
 }
 
-const HANDLED = new Set(['ssh', 'exit', 'logout', 'hostname', 'kubeadm', 'apt', 'apt-get', 'systemctl', 'etcdctl', 'etcdutl', 'openssl']);
+const HANDLED = new Set(['ssh', 'exit', 'logout', 'hostname', 'kubeadm', 'apt', 'apt-get', 'systemctl', 'etcdctl', 'etcdutl', 'openssl', 'kube-bench', 'harden']);
+
+/** A CIS-Benchmark-flavored subset of component flags, cluster-wide for simplicity (kube-bench's
+ * "master"/"node" split is real; per-node divergence isn't modeled). Each starts at the insecure
+ * default an unhardened kubeadm cluster ships with. */
+const BENCH_CHECKS = [
+  { id: '1.2.1', target: 'master', flag: 'anonymousAuth', secureWhen: false, desc: 'Ensure that the --anonymous-auth argument is set to false' },
+  { id: '1.2.20', target: 'master', flag: 'profiling', secureWhen: false, desc: 'Ensure that the --profiling argument is set to false' },
+  { id: '2.1', target: 'master', flag: 'etcdClientCertAuth', secureWhen: true, desc: 'Ensure that the --client-cert-auth argument is set to true (etcd)' },
+  { id: '4.2.4', target: 'node', flag: 'kubeletReadOnlyPort', secureWhen: false, desc: 'Ensure that the --read-only-port argument is set to 0 (kubelet)' },
+];
+
+/** `harden FLAG on|off` — on/off map 1:1 onto the real --flag=true/false, same as kube-bench reports. */
+const HARDEN_FLAGS = {
+  'anonymous-auth': { key: 'anonymousAuth', node: 'control-plane' },
+  profiling: { key: 'profiling', node: 'control-plane' },
+  'etcd-client-cert-auth': { key: 'etcdClientCertAuth', node: 'control-plane' },
+  'kubelet-read-only-port': { key: 'kubeletReadOnlyPort', node: null }, // any node
+};
 
 export function createHostOps(engine, { onMission = () => {} } = {}) {
   const state = {
@@ -41,6 +59,7 @@ export function createHostOps(engine, { onMission = () => {} } = {}) {
     nodeConfigUpgraded: {}, // nodeName -> true once `kubeadm upgrade node` ran there
     cpVersion: 'v' + K8S_CURRENT, // what `kubeadm upgrade apply` has been run up to
     snapshots: {}, // path -> { at, objects, data } — etcdctl snapshot save results
+    clusterConfig: { anonymousAuth: true, profiling: true, etcdClientCertAuth: false, kubeletReadOnlyPort: true },
   };
   const pkg = (node) => state.pkgs[node] || (state.pkgs[node] = { kubeadm: K8S_CURRENT, kubelet: K8S_CURRENT });
   const bornAt = () => {
@@ -287,6 +306,40 @@ export function createHostOps(engine, { onMission = () => {} } = {}) {
     onMission('cert-inspect');
   }
 
+  /* ----- kube-bench / harden ----- */
+
+  function cmdKubeBench(print, tokens) {
+    if (!state.host) return notOnANode(print, tokens[0]);
+    const { flags } = parseFlags(tokens.slice(1));
+    const targets = String(flags.targets || 'master,node').split(',');
+    if (targets.includes('master') && state.host !== 'control-plane')
+      return print("kube-bench: no 'master' checks apply here — ssh control-plane to audit the API server/etcd (or pass --targets=node)", 'err');
+    const checks = BENCH_CHECKS.filter((c) => targets.includes(c.target));
+    let pass = 0, fail = 0;
+    const lines = checks.map((c) => {
+      const ok = state.clusterConfig[c.flag] === c.secureWhen;
+      ok ? pass++ : fail++;
+      return `[${ok ? 'PASS' : 'FAIL'}] ${c.id} ${c.desc} (Automated)`;
+    });
+    print(`[INFO] Kubernetes CIS Benchmark — targets: ${targets.join(', ')}\n` + lines.join('\n') + `\n\n== Summary ==\n${pass} checks PASS\n${fail} checks FAIL\n0 checks WARN`, fail ? 'err' : 'ok');
+    onMission('kube-bench');
+    if (checks.length && !fail) onMission('kube-bench-pass:' + targets.join(','));
+  }
+
+  function cmdHarden(print, tokens) {
+    if (!state.host) return notOnANode(print, tokens[0]);
+    const name = tokens[1];
+    const val = tokens[2];
+    const def = HARDEN_FLAGS[name];
+    if (!def || (val !== 'on' && val !== 'off'))
+      return print(`usage: harden FLAG on|off  (flags: ${Object.keys(HARDEN_FLAGS).join(', ')})`, 'err');
+    if (def.node && state.host !== def.node) return print(`harden: --${name} is a ${def.node} flag — ssh there first`, 'err');
+    state.clusterConfig[def.key] = val === 'on';
+    print(`(${state.host}) rewrote the static pod manifest: --${name}=${val === 'on'} — the kubelet picks it up automatically`, 'ok');
+    onMission('harden:' + name);
+    engine.notify();
+  }
+
   /* ----- dispatcher ----- */
 
   function exec(rawCmd, print) {
@@ -300,6 +353,8 @@ export function createHostOps(engine, { onMission = () => {} } = {}) {
     if (w === 'systemctl') return cmdSystemctl(print, t);
     if (w === 'etcdctl' || w === 'etcdutl') return cmdEtcd(print, t);
     if (w === 'openssl') return cmdOpenssl(print, t);
+    if (w === 'kube-bench') return cmdKubeBench(print, t);
+    if (w === 'harden') return cmdHarden(print, t);
     print(`bash: ${esc(w)}: command not found`, 'err');
   }
 
