@@ -3530,7 +3530,7 @@ export default {
  },
  "m15": {
   "title": "🎓 Exam Room — mock exams & readiness",
-  "sub": "The Certify layer: a per-domain readiness dashboard fed by everything you've done here (lab missions, troubleshooting scenarios, quiz accuracy, past mocks), and timed CKA/CKAD mock exams graded on live cluster state — 66% to pass, partial credit per check, exactly like the real thing.",
+  "sub": "The Certify layer: a per-domain readiness dashboard fed by everything you've done here (lab missions, troubleshooting scenarios, quiz accuracy, past mocks), and timed CKA/CKAD/CKS mock exams graded on live cluster state — 66% to pass, partial credit per check, exactly like the real thing.",
   "_ncards": 0,
   "intro": [
    "Exam technique: there is NO check button during the exam. Read the task, do the work, verify it yourself (",
@@ -3648,5 +3648,38 @@ export default {
   "panelModified": "modified",
   "btnAutoSyncOn": "autoSync: on (click to disable)",
   "btnAutoSyncOff": "autoSync: off (click to enable)"
+ },
+ "m20": {
+  "title": "🔐 Security Drills — the six CKS domains",
+  "sub": "Six playgrounds, one per official CKS exam domain: CIS-benchmark the control plane, narrow an over-broad RBAC grant and lock down NetworkPolicy, harden the kubelet, walk Pod Security Admission from rejected to admitted, take an image through scan → fix → sign → deploy, and read the audit trail an RBAC check or a rejected pod leaves behind. Missions are graded live as you type — no Check button.",
+  "_ncards": 0,
+  "missionsTitle": "Missions — graded live",
+  "docsTitle": "📖 In the real docs",
+  "btnReset": "Reset lab",
+  "btnSolve": "Solve it for me",
+  "solutionTitle": "Reference solution",
+  "solveNote": "Reference solution — watch the missions tick, then Reset and do it yourself.",
+  "termHead": "exam console — kubectl / ssh / kube-bench / harden",
+  "greeting": "Simulated cluster. Type 'help' for kubectl commands; ssh onto a node for kube-bench/harden/apt-get/etc.",
+  "panelBenchTitle": "🏗 CIS Benchmark flags",
+  "panelFlagSecure": "secure",
+  "panelFlagInsecure": "insecure",
+  "panelBindings": "📜 RoleBindings in shop",
+  "panelPolicies": "🚧 NetworkPolicies in shop",
+  "panelConnectivity": "api → db",
+  "panelConnOk": "reachable",
+  "panelConnBlocked": "blocked",
+  "panelPsaLevel": "PSA level (apps namespace)",
+  "panelPodStatus": "secure-app pod",
+  "panelPodMissing": "not created yet",
+  "panelImages": "📦 Images",
+  "panelScanned": "scanned",
+  "panelUnscanned": "not scanned",
+  "panelSigned": "signed",
+  "panelUnsigned": "unsigned",
+  "panelClean": "0 CVEs",
+  "panelDeployStatus": "app pod",
+  "panelEvents": "📋 Recent events",
+  "panelNoEvents": "no events yet"
  }
 };

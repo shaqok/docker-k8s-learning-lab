@@ -158,7 +158,7 @@ export function createEngine({ onMission = () => {} } = {}) {
     });
   }
 
-  function makePod({ name, ns = 'default', labels = {}, image, command = null, owner = null, ownerKind = null, ownerReferences = null, rsName = null, nodeName = null, system = false, v2 = false, tolerations = [], nodeSelector = null, affinity = null, readinessProbe = null, livenessProbe = null, resources = null, env = null, envFrom = null, volumeMounts = null, volumes = null, containerPort = null, crash = false, notReadyReason = null, containers = null, initContainers = null, restartPolicy = 'Always' }) {
+  function makePod({ name, ns = 'default', labels = {}, image, command = null, owner = null, ownerKind = null, ownerReferences = null, rsName = null, nodeName = null, system = false, v2 = false, tolerations = [], nodeSelector = null, affinity = null, readinessProbe = null, livenessProbe = null, resources = null, env = null, envFrom = null, volumeMounts = null, volumes = null, containerPort = null, crash = false, notReadyReason = null, containers = null, initContainers = null, restartPolicy = 'Always', securityContext = null }) {
     const cname = owner ? owner.split('/').pop() : imageRepo(image) || 'app';
     // `containers` (an explicit array) is how a multi-container pod is built; every existing
     // single-container caller keeps passing flat scalar args, which become a one-element array.
@@ -172,6 +172,7 @@ export function createEngine({ onMission = () => {} } = {}) {
       ...(readinessProbe ? { readinessProbe } : {}),
       ...(livenessProbe ? { livenessProbe } : {}),
       ...(volumeMounts ? { volumeMounts } : {}),
+      ...(securityContext ? { securityContext } : {}),
     }];
     const running = !!nodeName;
     return put({

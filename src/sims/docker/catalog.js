@@ -82,6 +82,40 @@ export function copyCost(src, fromStage) {
   return 1;
 }
 
+/**
+ * Fake CVE data for the Supply Chain Security lab's `trivy image` — exact-ref
+ * keyed (see vulnerabilitiesFor below; unlike BASE_IMAGES, this does NOT fall
+ * back to the bare repo). Slim/alpine variants and anything not listed here
+ * scan clean: same "smaller base, smaller attack surface" lesson the size
+ * table already teaches.
+ */
+export const VULN_CATALOG = {
+  node: [{ id: 'CVE-2024-21538', severity: 'HIGH', pkg: 'cross-spawn' }],
+  'node:20': [{ id: 'CVE-2024-21538', severity: 'HIGH', pkg: 'cross-spawn' }],
+  'node:22': [{ id: 'CVE-2024-21538', severity: 'HIGH', pkg: 'cross-spawn' }],
+  debian: [{ id: 'CVE-2023-4863', severity: 'CRITICAL', pkg: 'libwebp' }],
+  'debian:slim': [{ id: 'CVE-2023-4863', severity: 'CRITICAL', pkg: 'libwebp' }],
+  'debian:bookworm-slim': [{ id: 'CVE-2023-4863', severity: 'CRITICAL', pkg: 'libwebp' }],
+  ubuntu: [{ id: 'CVE-2023-4863', severity: 'CRITICAL', pkg: 'libwebp' }],
+  'ubuntu:22.04': [{ id: 'CVE-2023-4863', severity: 'CRITICAL', pkg: 'libwebp' }],
+  python: [{ id: 'CVE-2024-3094', severity: 'CRITICAL', pkg: 'xz-utils' }],
+  'python:3.12': [{ id: 'CVE-2024-3094', severity: 'CRITICAL', pkg: 'xz-utils' }],
+  nginx: [{ id: 'CVE-2024-7347', severity: 'MEDIUM', pkg: 'nginx-module-mp4' }],
+  'nginx:1.27': [{ id: 'CVE-2024-7347', severity: 'MEDIUM', pkg: 'nginx-module-mp4' }],
+};
+
+/**
+ * CVEs known for a base ref — exact match only (a `node:20-alpine` scanning
+ * clean while bare `node`/`node:20` don't is the whole lesson, so this must
+ * NOT fall back to the bare repo the way the size catalog does). `:latest` is
+ * the one normalization: `docker pull node` and `FROM node` both resolve to
+ * the same catalog entry either way the ref happens to be spelled.
+ */
+export function vulnerabilitiesFor(baseRef) {
+  const key = String(baseRef || '').trim();
+  return VULN_CATALOG[key] || VULN_CATALOG[key.replace(/:latest$/, '')] || [];
+}
+
 /** Short 12-hex layer/image id from a string, so cache keys are reproducible in a session. */
 export function shortId(seed) {
   let h = 0;

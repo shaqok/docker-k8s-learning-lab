@@ -955,6 +955,306 @@ export const QUIZ_BANK = [
       ko: '1.18부터 run = 파드 하나(빠른 테스트/디버그 클라이언트용). 살아남아야 하는 것은 create deployment로.',
     },
   },
+  // ── CKS ─────────────────────────────────────────────────────────────────
+  {
+    d: ['clusterSetup'],
+    q: { en: 'What does kube-bench check?', ko: 'kube-bench는 무엇을 점검하나요?' },
+    a: {
+      en: ['Network latency between nodes', 'Cluster component config against the CIS Kubernetes Benchmark', 'Container image vulnerabilities', 'Pod resource usage'],
+      ko: ['노드 간 네트워크 지연', 'CIS Kubernetes Benchmark 기준으로 클러스터 컴포넌트 설정 점검', '컨테이너 이미지 취약점', '파드 리소스 사용량'],
+    },
+    c: 1,
+    why: {
+      en: 'kube-bench audits kubeadm/kubelet/etcd config files and flags against the published CIS benchmark, printing PASS/FAIL/WARN per check.',
+      ko: 'kube-bench는 kubeadm/kubelet/etcd 설정 파일과 플래그를 공개된 CIS benchmark 기준으로 점검해 각 항목을 PASS/FAIL/WARN으로 출력합니다.',
+    },
+  },
+  {
+    d: ['clusterSetup'],
+    q: { en: 'Why does CIS hardening flag --anonymous-auth=true on the API server?', ko: 'CIS 강화 기준이 API 서버의 --anonymous-auth=true를 왜 지적하나요?' },
+    a: {
+      en: ['It slows down the API server', 'It lets unauthenticated requests be treated as the system:anonymous user', 'It disables RBAC entirely', 'It only affects etcd'],
+      ko: ['API 서버 속도가 느려진다', '인증되지 않은 요청이 system:anonymous 사용자로 처리된다', 'RBAC이 전부 비활성화된다', 'etcd에만 영향을 준다'],
+    },
+    c: 1,
+    why: {
+      en: "With anonymous-auth on, any request without credentials still gets evaluated by RBAC as system:anonymous — if any RoleBinding is careless, that's an open door.",
+      ko: 'anonymous-auth가 켜져 있으면 인증 정보가 없는 요청도 system:anonymous로 RBAC 평가를 받습니다 — RoleBinding이 하나라도 허술하면 그대로 뚫립니다.',
+    },
+  },
+  {
+    d: ['clusterSetup'],
+    q: { en: "etcd's --client-cert-auth=true requires…", ko: 'etcd의 --client-cert-auth=true가 요구하는 것은…' },
+    a: {
+      en: ['Clients to present a valid TLS client certificate signed by the trusted CA', 'Clients to use a username/password', 'Nothing extra — it only enables HTTPS', 'etcd to run in read-only mode'],
+      ko: ['클라이언트가 신뢰된 CA가 서명한 유효한 TLS 클라이언트 인증서를 제시해야 함', '클라이언트가 아이디/비밀번호를 사용해야 함', '추가 요구 없음 — HTTPS만 켜짐', 'etcd가 읽기 전용으로 동작함'],
+    },
+    c: 0,
+    why: {
+      en: 'Without it, anyone who can reach the etcd port can read/write the entire cluster state — every Secret included — with no server-side identity check.',
+      ko: '이게 꺼져 있으면 etcd 포트에 닿을 수 있는 누구든 신원 확인 없이 클러스터 전체 상태(모든 Secret 포함)를 읽고 쓸 수 있습니다.',
+    },
+  },
+  {
+    d: ['clusterSetup'],
+    q: { en: "The kubelet's read-only port (10255) is dangerous because…", ko: 'kubelet의 읽기 전용 포트(10255)가 위험한 이유는…' },
+    a: {
+      en: ['It serves node/pod metadata over plain HTTP with NO authentication', 'It lets you SSH into the node', 'It exposes the container registry', 'It only works over the VPN'],
+      ko: ['인증 전혀 없이 평문 HTTP로 노드/파드 메타데이터를 제공한다', '노드에 SSH 접속을 허용한다', '컨테이너 레지스트리를 노출한다', 'VPN을 통해서만 동작한다'],
+    },
+    c: 0,
+    why: {
+      en: "Anyone on the node's network segment can just curl it — no token, no cert. CIS hardening sets it to 0 (disabled) and pushes everything through the authenticated kubelet API.",
+      ko: '노드와 같은 네트워크 대역에 있는 누구든 토큰도 인증서도 없이 그냥 curl로 접근할 수 있습니다. CIS 강화는 이를 0(비활성화)으로 설정하고 모든 걸 인증된 kubelet API로 몰아줍니다.',
+    },
+  },
+  {
+    d: ['clusterHardening'],
+    q: { en: "Kubernetes RBAC's default posture is…", ko: 'Kubernetes RBAC의 기본 태도는…' },
+    a: {
+      en: ['Allow by default, deny specific verbs', 'Deny by default — permission exists only if a rule explicitly grants it', 'Allow everyone cluster-admin', 'RBAC is opt-in per namespace'],
+      ko: ['기본 허용, 특정 동사만 거부', '기본 거부 — 규칙이 명시적으로 허용해야만 권한이 생김', '모두에게 cluster-admin 허용', '네임스페이스별로 RBAC을 선택 적용'],
+    },
+    c: 1,
+    why: {
+      en: 'No matching Role/ClusterRole rule bound to a subject = no permission. This is why a fresh ServiceAccount can do nothing until you bind it to something.',
+      ko: '어떤 Role/ClusterRole 규칙도 주체에 바인딩되어 있지 않으면 권한이 없습니다. 새 ServiceAccount가 아무것도 못 하는 이유가 바로 이겁니다 — 뭔가에 바인딩하기 전까지는요.',
+    },
+  },
+  {
+    d: ['clusterHardening'],
+    q: { en: 'A RoleBinding referencing a ClusterRole grants that ClusterRole\'s permissions…', ko: 'ClusterRole을 참조하는 RoleBinding은 그 ClusterRole의 권한을…' },
+    a: {
+      en: ['Cluster-wide, in every namespace', "Only inside the RoleBinding's own namespace", 'Only to cluster-admin', 'Nowhere — that combination is invalid'],
+      ko: ['클러스터 전체, 모든 네임스페이스에', 'RoleBinding 자신의 네임스페이스 안에서만', 'cluster-admin에게만', '어디에도 — 그 조합은 무효'],
+    },
+    c: 1,
+    why: {
+      en: "This is the reusable-ClusterRole pattern: define 'pod-reader' once, bind it with RoleBindings in as many namespaces as you like, each grant staying scoped to its own namespace.",
+      ko: '재사용 가능한 ClusterRole 패턴입니다: pod-reader를 한 번 정의하고 원하는 만큼의 네임스페이스에 RoleBinding으로 바인딩하면, 각 권한은 자신의 네임스페이스에만 국한됩니다.',
+    },
+  },
+  {
+    d: ['clusterHardening'],
+    q: { en: 'A namespace with zero NetworkPolicy objects…', ko: 'NetworkPolicy 객체가 하나도 없는 네임스페이스는…' },
+    a: {
+      en: ['Blocks all traffic by default', 'Allows all traffic — every pod can reach every other pod', 'Only allows traffic within the same pod', 'Requires a CNI plugin to even start pods'],
+      ko: ['기본적으로 모든 트래픽 차단', '모든 트래픽 허용 — 모든 파드가 서로 접근 가능', '같은 파드 내 트래픽만 허용', 'CNI 플러그인 없이는 파드 시작 자체가 불가'],
+    },
+    c: 1,
+    why: {
+      en: "NetworkPolicies are allow-lists that only kick in once something selects a pod. The classic hardening move is default-deny first, then punch specific holes.",
+      ko: 'NetworkPolicy는 허용 목록이며, 무언가 파드를 선택하는 순간부터만 작동합니다. 전형적인 강화 방법은 먼저 기본 거부를 걸고, 그다음 필요한 구멍만 뚫는 것입니다.',
+    },
+  },
+  {
+    d: ['clusterHardening'],
+    q: { en: 'The "principle of least privilege" applied to RBAC means…', ko: 'RBAC에 적용된 "최소 권한 원칙"이란…' },
+    a: {
+      en: ['Every ServiceAccount should get cluster-admin for simplicity', 'A subject should only get the exact verbs/resources it needs to do its job, nothing more', 'Only humans get RBAC, ServiceAccounts do not', 'RBAC should be disabled to reduce complexity'],
+      ko: ['간단하게 하려면 모든 ServiceAccount에 cluster-admin을 준다', '주체는 자기 일에 필요한 정확한 동사/리소스만 받아야 하고 그 이상은 안 된다', '사람만 RBAC을 받고 ServiceAccount는 받지 않는다', '복잡성을 줄이려면 RBAC을 꺼야 한다'],
+    },
+    c: 1,
+    why: {
+      en: 'A forgotten cluster-admin-equivalent grant (broad Role or ClusterRoleBinding) is exactly the kind of finding a CKS exam task — and a real audit — expects you to hunt down and narrow.',
+      ko: '잊혀진 cluster-admin급 권한(광범위한 Role이나 ClusterRoleBinding)은 CKS 시험 과제와 실제 감사 모두가 찾아내 좁히길 기대하는 전형적인 발견 사항입니다.',
+    },
+  },
+  {
+    d: ['systemHardening'],
+    q: { en: 'Why avoid running container processes as root (UID 0)?', ko: '컨테이너 프로세스를 root(UID 0)로 실행하지 말아야 하는 이유는?' },
+    a: {
+      en: ['Root containers use more memory', "If the container is compromised, a container-to-host breakout has full root instead of a limited user", 'Kubernetes forbids it by default', 'It only matters for Windows containers'],
+      ko: ['root 컨테이너는 메모리를 더 쓴다', '컨테이너가 뚫렸을 때 제한된 사용자가 아니라 완전한 root 권한으로 호스트 탈출이 일어날 수 있다', 'Kubernetes가 기본적으로 이를 금지한다', 'Windows 컨테이너에만 해당한다'],
+    },
+    c: 1,
+    why: {
+      en: 'runAsNonRoot: true in a securityContext (and the restricted PSA level requiring it) exists precisely to shrink the blast radius of a container escape.',
+      ko: 'securityContext의 runAsNonRoot: true(그리고 이를 요구하는 restricted PSA 레벨)는 정확히 컨테이너 탈출의 피해 범위를 줄이기 위해 존재합니다.',
+    },
+  },
+  {
+    d: ['systemHardening'],
+    q: { en: 'seccomp profiles restrict a container by…', ko: 'seccomp 프로파일이 컨테이너를 제한하는 방식은…' },
+    a: {
+      en: ['Limiting which Linux syscalls the process may make', 'Limiting CPU usage', 'Limiting which images can be pulled', 'Limiting network bandwidth'],
+      ko: ['프로세스가 호출할 수 있는 리눅스 시스템콜을 제한', 'CPU 사용량 제한', '풀 수 있는 이미지 제한', '네트워크 대역폭 제한'],
+    },
+    c: 0,
+    why: {
+      en: "A compromised process that can't call mount() or reboot() can't do nearly as much damage — seccomp is a syscall allow/deny-list, one more layer alongside capabilities and AppArmor.",
+      ko: 'mount()나 reboot() 같은 시스템콜을 호출할 수 없는 프로세스는 뚫려도 할 수 있는 게 훨씬 적습니다 — seccomp는 시스템콜 허용/거부 목록으로, capabilities·AppArmor와 함께 쓰이는 또 하나의 방어 층입니다.',
+    },
+  },
+  {
+    d: ['systemHardening'],
+    q: { en: 'Minimizing a node\'s host OS footprint (fewer packages, no unneeded services) mainly helps because…', ko: '노드의 호스트 OS 설치 범위를 최소화하는(패키지·불필요한 서비스 줄이기) 게 도움이 되는 주된 이유는…' },
+    a: {
+      en: ['It makes the node boot faster', 'Fewer installed packages/services means fewer things that can carry a vulnerability', 'It is required for kubeadm to work', 'It reduces the etcd database size'],
+      ko: ['노드 부팅이 빨라진다', '설치된 패키지·서비스가 적을수록 취약점을 가질 수 있는 것도 적어진다', 'kubeadm 동작에 필수적이다', 'etcd 데이터베이스 크기가 줄어든다'],
+    },
+    c: 1,
+    why: {
+      en: 'Same logic as a slim container base image, one level up the stack: every extra package on the node is one more thing that needs patching and one more potential CVE.',
+      ko: '슬림한 컨테이너 베이스 이미지와 같은 논리를 한 단계 위에 적용한 것입니다: 노드의 추가 패키지 하나하나가 패치해야 할 대상이자 잠재적 CVE입니다.',
+    },
+  },
+  {
+    d: ['microserviceVuln'],
+    q: { en: 'Pod Security Admission has three built-in levels:', ko: 'Pod Security Admission의 내장 레벨 세 가지는:' },
+    a: {
+      en: ['low / medium / high', 'privileged / baseline / restricted', 'open / audit / enforce', 'root / nonroot / readonly'],
+      ko: ['low / medium / high', 'privileged / baseline / restricted', 'open / audit / enforce', 'root / nonroot / readonly'],
+    },
+    c: 1,
+    why: {
+      en: "privileged = no restrictions (the default when unlabeled); baseline blocks known privilege escalations; restricted enforces current pod-hardening best practice (non-root, no escalation, drop all capabilities…).",
+      ko: 'privileged = 제한 없음(라벨이 없을 때의 기본값); baseline은 알려진 권한 상승 경로를 막음; restricted는 현재의 파드 강화 모범 사례(비root, 권한 상승 금지, 모든 capability drop 등)를 강제합니다.',
+    },
+  },
+  {
+    d: ['microserviceVuln'],
+    q: { en: 'To satisfy the "restricted" Pod Security Standard, capabilities.drop must include…', ko: '"restricted" Pod Security Standard를 만족하려면 capabilities.drop에 무엇이 있어야 하나요?' },
+    a: {
+      en: ['NET_ADMIN', "'ALL'", 'SYS_ADMIN only', 'Nothing — drop is optional at every level'],
+      ko: ['NET_ADMIN', "'ALL'", 'SYS_ADMIN만', '아무것도 — drop은 모든 레벨에서 선택 사항'],
+    },
+    c: 1,
+    why: {
+      en: "restricted requires every Linux capability be dropped, then only NET_BIND_SERVICE may be added back — the smallest possible surface for a process that isn't root.",
+      ko: 'restricted는 모든 리눅스 capability를 drop하도록 요구하고, 그 뒤 NET_BIND_SERVICE만 다시 추가할 수 있습니다 — root가 아닌 프로세스가 가질 수 있는 최소한의 권한 표면입니다.',
+    },
+  },
+  {
+    d: ['microserviceVuln'],
+    q: { en: 'securityContext.allowPrivilegeEscalation: false prevents…', ko: 'securityContext.allowPrivilegeEscalation: false가 막는 것은…' },
+    a: {
+      en: ['The container from ever making network calls', 'A process from gaining more privileges than its parent (e.g. via setuid binaries)', 'The pod from being scheduled on tainted nodes', 'The image from being pulled from a private registry'],
+      ko: ['컨테이너가 네트워크 호출을 하는 것', '프로세스가 부모보다 더 많은 권한을 얻는 것(예: setuid 바이너리를 통해)', '파드가 taint된 노드에 스케줄되는 것', '프라이빗 레지스트리에서 이미지를 pull하는 것'],
+    },
+    c: 1,
+    why: {
+      en: 'Without this flag, a process could exec a setuid-root binary and jump straight past whatever non-root/dropped-capabilities configuration you set — required at the restricted level for exactly this reason.',
+      ko: '이 플래그가 없으면 프로세스가 setuid-root 바이너리를 실행해 애써 설정한 비root/capability drop을 그냥 건너뛸 수 있습니다 — restricted 레벨에서 이게 필수인 이유입니다.',
+    },
+  },
+  {
+    d: ['microserviceVuln'],
+    q: { en: 'When a running pod already violates a namespace\'s newly-added restricted label, Pod Security Admission…', ko: '이미 실행 중인 파드가 네임스페이스에 새로 추가된 restricted 라벨을 위반하는 상태라면 Pod Security Admission은…' },
+    a: {
+      en: ['Immediately evicts the running pod', 'Does nothing to the already-running pod — admission only gates NEW pod creation', 'Crashes the API server', 'Automatically patches the pod\'s securityContext'],
+      ko: ['실행 중인 파드를 즉시 축출한다', '이미 실행 중인 파드에는 아무 일도 하지 않는다 — admission은 새 파드 생성만 관문 역할을 한다', 'API 서버가 죽는다', '파드의 securityContext를 자동으로 고친다'],
+    },
+    c: 1,
+    why: {
+      en: "This is a real exam gotcha: labeling a namespace restricted does NOT retroactively fix or remove existing pods. You have to delete and recreate them yourself for the policy to actually apply.",
+      ko: '실제 시험에서 자주 걸리는 함정입니다: 네임스페이스를 restricted로 라벨링해도 기존 파드가 소급 적용되어 고쳐지거나 제거되지 않습니다. 정책이 실제로 적용되려면 직접 지우고 다시 만들어야 합니다.',
+    },
+  },
+  {
+    d: ['supplyChain'],
+    q: { en: 'Trivy is most commonly used to…', ko: 'Trivy는 주로 무엇에 쓰이나요?' },
+    a: {
+      en: ['Scan container images for known CVEs in OS packages and language dependencies', 'Sign container images cryptographically', 'Build multi-stage Dockerfiles', 'Run a Kubernetes admission webhook server'],
+      ko: ['OS 패키지와 언어 의존성의 알려진 CVE를 컨테이너 이미지에서 스캔', '컨테이너 이미지에 암호학적으로 서명', '멀티 스테이지 Dockerfile 빌드', 'Kubernetes admission 웹훅 서버 실행'],
+    },
+    c: 0,
+    why: {
+      en: "trivy image REF walks the image's layers, matches installed packages against a CVE database, and reports findings by severity — the first step of any supply-chain check.",
+      ko: 'trivy image REF는 이미지의 레이어를 훑어 설치된 패키지를 CVE 데이터베이스와 대조하고 심각도별로 결과를 보고합니다 — 공급망 점검의 첫 단계입니다.',
+    },
+  },
+  {
+    d: ['supplyChain'],
+    q: { en: 'cosign sign / cosign verify provide…', ko: 'cosign sign / cosign verify가 제공하는 것은…' },
+    a: {
+      en: ['Vulnerability scanning', 'Cryptographic image signing and signature verification — proving an image came from a trusted source and is unmodified', 'Automatic CVE patching', 'Network policy enforcement'],
+      ko: ['취약점 스캔', '암호학적 이미지 서명과 서명 검증 — 이미지가 신뢰할 수 있는 출처에서 왔고 변조되지 않았음을 증명', 'CVE 자동 패치', 'NetworkPolicy 강제'],
+    },
+    c: 1,
+    why: {
+      en: 'Scanning tells you an image is clean RIGHT NOW; signing lets you (or an admission webhook) later verify it is the exact same image and nobody tampered with it in the registry.',
+      ko: '스캔은 "지금 이 순간" 이미지가 깨끗하다는 걸 말해주고, 서명은 나중에(또는 admission 웹훅이) 이것이 정확히 같은 이미지이고 레지스트리에서 아무도 손대지 않았음을 검증하게 해 줍니다.',
+    },
+  },
+  {
+    d: ['supplyChain'],
+    q: { en: 'Why does a supply-chain-hardened cluster often reject unscanned images at admission time?', ko: '공급망을 강화한 클러스터가 admission 시점에 스캔되지 않은 이미지를 거부하는 이유는?' },
+    a: {
+      en: ['Unscanned images are always larger', 'It forces every image running in the cluster to have gone through a known vulnerability check before it can run', 'It makes docker pull faster', 'It is required for the Deployment controller to work'],
+      ko: ['스캔되지 않은 이미지는 항상 더 크다', '클러스터에서 실행되는 모든 이미지가 실행 전에 알려진 취약점 점검을 거치도록 강제한다', 'docker pull이 빨라진다', 'Deployment 컨트롤러 동작에 필수다'],
+    },
+    c: 1,
+    why: {
+      en: "This closes the loop: scanning alone is just information unless something enforces it. An admission-time gate makes 'was this checked?' a hard requirement, not a suggestion.",
+      ko: '이 지점에서 순환이 완성됩니다: 스캔만으로는 그저 정보일 뿐, 무언가가 강제하지 않으면 의미가 없습니다. admission 시점 게이트는 "점검했는가?"를 제안이 아니라 필수 요건으로 만듭니다.',
+    },
+  },
+  {
+    d: ['supplyChain'],
+    q: { en: 'A smaller/minimal base image (e.g. alpine vs a full distro) tends to have fewer known CVEs mainly because…', ko: '더 작고 최소화된 베이스 이미지(예: 전체 배포판 대신 alpine)가 대체로 알려진 CVE가 적은 주된 이유는…' },
+    a: {
+      en: ['CVE scanners skip small images', 'It ships far fewer OS packages, each one a potential source of a vulnerability', 'Alpine images are never scanned', 'It has no effect on vulnerability count'],
+      ko: ['CVE 스캐너가 작은 이미지는 건너뛴다', 'OS 패키지를 훨씬 적게 포함하며, 패키지 하나하나가 취약점의 잠재적 원인이다', 'alpine 이미지는 절대 스캔되지 않는다', '취약점 개수에 영향이 없다'],
+    },
+    c: 1,
+    why: {
+      en: "Same lesson the build/cache labs teach about image size, applied to security: fewer packages in FROM means fewer things a scanner can find wrong with your image.",
+      ko: 'build/cache 랩이 이미지 크기에 대해 가르치는 것과 같은 교훈을 보안에 적용한 것입니다: FROM에 패키지가 적을수록 스캐너가 찾아낼 문제도 적습니다.',
+    },
+  },
+  {
+    d: ['monitoring'],
+    q: { en: "Falco is best described as…", ko: 'Falco를 가장 잘 설명하면…' },
+    a: {
+      en: ['A container build tool', 'A runtime security tool that watches syscalls/behavior and alerts on suspicious activity (e.g. a shell spawned inside a container)', 'A NetworkPolicy controller', 'A log aggregation database'],
+      ko: ['컨테이너 빌드 도구', '시스템콜/행동을 감시하다가 의심스러운 활동(예: 컨테이너 안에서 셸이 뜨는 것)에 경보를 울리는 런타임 보안 도구', 'NetworkPolicy 컨트롤러', '로그 집계 데이터베이스'],
+    },
+    c: 1,
+    why: {
+      en: 'Scanning and PSA are preventive (block bad things before they run); Falco is detective — it watches what ALREADY-running containers actually do and flags it in real time.',
+      ko: '스캔과 PSA는 예방적입니다(나쁜 것이 실행되기 전에 막음); Falco는 탐지적입니다 — 이미 실행 중인 컨테이너가 실제로 무엇을 하는지 지켜보다가 실시간으로 알립니다.',
+    },
+  },
+  {
+    d: ['monitoring'],
+    q: { en: "The kube-apiserver flag --audit-log-path enables…", ko: 'kube-apiserver의 --audit-log-path 플래그가 활성화하는 것은…' },
+    a: {
+      en: ['Application container logs', 'A record of every request made to the API server — who did what, when', "etcd's own transaction log", 'Node kernel logs'],
+      ko: ['애플리케이션 컨테이너 로그', 'API 서버에 들어온 모든 요청 기록 — 누가 언제 무엇을 했는지', 'etcd 자체 트랜잭션 로그', '노드 커널 로그'],
+    },
+    c: 1,
+    why: {
+      en: "This is the REAL audit log the exam means — distinct from kubectl get events (which are short-lived, object-scoped notes). This sim's events are a teaching stand-in for the same 'who did what' investigation.",
+      ko: '이것이 시험이 말하는 진짜 감사 로그입니다 — kubectl get events(수명이 짧고 객체 범위인 메모)와는 다릅니다. 이 시뮬레이터의 events는 같은 "누가 무엇을 했는가" 조사를 가르치기 위한 대역입니다.',
+    },
+  },
+  {
+    d: ['monitoring'],
+    q: { en: "An audit policy in Kubernetes primarily determines…", ko: 'Kubernetes의 audit policy가 주로 결정하는 것은…' },
+    a: {
+      en: ['Which requests get logged and at what level of detail (Metadata / Request / RequestResponse / None)', 'Which pods get scheduled first', 'How often etcd is compacted', 'Which images are allowed to run'],
+      ko: ['어떤 요청이 로깅되고 얼마나 자세히 기록되는지(Metadata / Request / RequestResponse / None)', '어떤 파드가 먼저 스케줄되는지', 'etcd가 얼마나 자주 압축되는지', '어떤 이미지가 실행 허용되는지'],
+    },
+    c: 0,
+    why: {
+      en: "Logging RequestResponse for every single request would be enormous and slow — the policy lets you dial detail up for sensitive resources (Secrets, RBAC objects) and down for noisy ones.",
+      ko: '모든 요청에 RequestResponse 수준으로 로깅하면 양이 엄청나고 느려집니다 — policy를 통해 민감한 리소스(Secret, RBAC 객체)는 자세히, 시끄러운 리소스는 덜 자세히 기록하도록 조절할 수 있습니다.',
+    },
+  },
+  {
+    d: ['monitoring'],
+    q: { en: "If an RBAC check is denied, the exam expects you to be able to…", ko: 'RBAC 검사가 거부됐을 때 시험이 기대하는 것은…' },
+    a: {
+      en: ['Ignore it — denials aren\'t logged anywhere', 'Find evidence of the denial in the cluster\'s audit trail for later investigation', 'Automatically grant the permission', 'Restart the API server'],
+      ko: ['무시한다 — 거부는 어디에도 기록되지 않는다', '나중에 조사할 수 있도록 클러스터 감사 기록에서 거부 증거를 찾는다', '자동으로 권한을 부여한다', 'API 서버를 재시작한다'],
+    },
+    c: 1,
+    why: {
+      en: "'Who tried to do what, and were they allowed' is a core Monitoring/Logging/Runtime Security skill — both allowed AND denied requests leave a trail worth reading.",
+      ko: '"누가 무엇을 시도했고, 허용되었는가"는 Monitoring/Logging/Runtime Security 도메인의 핵심 역량입니다 — 허용된 요청과 거부된 요청 모두 조사할 가치가 있는 흔적을 남깁니다.',
+    },
+  },
 ];
 
 /** Questions relevant to an exam: tagged with at least one of its domain ids. */

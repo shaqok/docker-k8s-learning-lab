@@ -3517,7 +3517,7 @@ export default {
  },
  "m15": {
   "title": "🎓 시험장 — 모의고사 & 준비도",
-  "sub": "Certify 레이어: 여기서 한 모든 것(실습 미션, 트러블슈팅 시나리오, 퀴즈 정답률, 지난 모의고사)이 반영되는 도메인별 준비도 대시보드, 그리고 실제 클러스터 상태로 채점되는 CKA/CKAD 모의고사 — 합격선 66%, 체크별 부분 점수, 실전과 똑같이.",
+  "sub": "Certify 레이어: 여기서 한 모든 것(실습 미션, 트러블슈팅 시나리오, 퀴즈 정답률, 지난 모의고사)이 반영되는 도메인별 준비도 대시보드, 그리고 실제 클러스터 상태로 채점되는 CKA/CKAD/CKS 모의고사 — 합격선 66%, 체크별 부분 점수, 실전과 똑같이.",
   "_ncards": 0,
   "intro": [
    "시험 기술: 시험 중에는 채점 버튼이 없습니다. 과제를 읽고, 작업하고, 스스로 검증하고(",
@@ -3635,5 +3635,38 @@ export default {
   "panelModified": "변경됨",
   "btnAutoSyncOn": "autoSync: 켜짐 (클릭해서 끄기)",
   "btnAutoSyncOff": "autoSync: 꺼짐 (클릭해서 켜기)"
+ },
+ "m20": {
+  "title": "🔐 보안 드릴 — CKS 6개 도메인",
+  "sub": "공식 CKS 시험 도메인마다 하나씩, 여섯 개의 놀이터: 컨트롤 플레인 CIS 벤치마크, 지나치게 넓은 RBAC 권한 좁히기와 NetworkPolicy로 잠그기, kubelet 강화하기, Pod Security Admission을 거부에서 승인까지 따라가기, 이미지를 스캔 → 수정 → 서명 → 배포까지 끌고 가기, 그리고 RBAC 검사나 거부된 파드가 남기는 감사 기록 읽기. 미션은 입력하는 동안 실시간으로 채점됩니다 — Check 버튼이 없습니다.",
+  "_ncards": 0,
+  "missionsTitle": "미션 — 실시간 채점",
+  "docsTitle": "📖 실제 문서에서 찾기",
+  "btnReset": "랩 초기화",
+  "btnSolve": "풀이 실행하기",
+  "solutionTitle": "모범 답안",
+  "solveNote": "모범 답안 — 미션이 채점되는 걸 지켜본 뒤, 초기화하고 직접 해 보세요.",
+  "termHead": "시험 콘솔 — kubectl / ssh / kube-bench / harden",
+  "greeting": "시뮬레이션 클러스터입니다. 'help'로 kubectl 명령을 확인하고, kube-bench/harden/apt-get 등은 노드에 ssh로 접속해 사용하세요.",
+  "panelBenchTitle": "🏗 CIS Benchmark 플래그",
+  "panelFlagSecure": "안전",
+  "panelFlagInsecure": "취약",
+  "panelBindings": "📜 shop의 RoleBinding",
+  "panelPolicies": "🚧 shop의 NetworkPolicy",
+  "panelConnectivity": "api → db",
+  "panelConnOk": "연결 가능",
+  "panelConnBlocked": "차단됨",
+  "panelPsaLevel": "PSA 레벨 (apps 네임스페이스)",
+  "panelPodStatus": "secure-app 파드",
+  "panelPodMissing": "아직 생성되지 않음",
+  "panelImages": "📦 이미지",
+  "panelScanned": "스캔됨",
+  "panelUnscanned": "스캔 안 됨",
+  "panelSigned": "서명됨",
+  "panelUnsigned": "서명 안 됨",
+  "panelClean": "CVE 0개",
+  "panelDeployStatus": "app 파드",
+  "panelEvents": "📋 최근 이벤트",
+  "panelNoEvents": "아직 이벤트 없음"
  }
 };

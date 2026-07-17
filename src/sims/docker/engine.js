@@ -1,5 +1,5 @@
 import { KNOWN_IMAGES } from '../../data/images.js';
-import { BASE_IMAGES, shortId, fmtSize } from './catalog.js';
+import { BASE_IMAGES, shortId, fmtSize, vulnerabilitiesFor } from './catalog.js';
 import { hexid, rid } from '../util.js';
 
 /**
@@ -98,6 +98,28 @@ export function createDockerEngine({ onChange = () => {}, onMission = () => {} }
   }
 
   function putImage(img) { state.images.set(img.repo + ':' + img.tag, img); changed(); }
+
+  /** Base ref an image was built/pulled FROM — layers[0] is always that FROM, per build.js. */
+  const baseRefOf = (img) => (img.layers[0]?.instr || '').replace(/^FROM\s+/, '').split(/\s+AS\s+/i)[0].trim();
+
+  /** `trivy image REF` — scan the base for known CVEs (Supply Chain Security lab). */
+  function scanImage(ref) {
+    const img = getImage(ref);
+    if (!img) return { error: `Unable to find image '${ref}' locally` };
+    const findings = vulnerabilitiesFor(baseRefOf(img));
+    img.scan = { at: Date.now(), findings };
+    changed();
+    return { image: img, findings };
+  }
+
+  /** `cosign sign REF` — mark the image signed (cleared again if it's rebuilt/re-pulled). */
+  function signImage(ref) {
+    const img = getImage(ref);
+    if (!img) return { error: `Unable to find image '${ref}' locally` };
+    img.signed = true;
+    changed();
+    return { image: img };
+  }
 
   function removeImage(ref) {
     const img = getImage(ref);
@@ -284,7 +306,7 @@ export function createDockerEngine({ onChange = () => {}, onMission = () => {} }
   return {
     state, fmtSize, onMission, subscribe,
     // images
-    getImage, listImages, pull, putImage, removeImage, tagImage, imageSizeMB,
+    getImage, listImages, pull, putImage, removeImage, tagImage, imageSizeMB, scanImage, signImage,
     // containers
     find, listContainers, createContainer, startContainer, stopContainer, removeContainer,
     // fs

@@ -4,6 +4,8 @@ import { toYaml } from './yaml.js';
 import { K8S_NODE_CAP, K8S_NODE_ALLOC, K8S_IMAGES, imageRepo, imageKnown, qosOf } from './engine.js';
 import { canI, parseAsSubject, normResource } from './rbac.js';
 import { canConnect } from './netpol.js';
+import { admitPod } from './podSecurity.js';
+import { checkImagePolicy } from './imagePolicy.js';
 import { resolveHttp } from './routing.js';
 import { buildKustomization } from './kustomize.js';
 
@@ -964,6 +966,28 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     print(`error: unknown create target "${esc(what)}" (supported: deployment, job, cronjob, namespace, configmap, secret generic, serviceaccount, role, clusterrole, rolebinding, clusterrolebinding, ingress, poddisruptionbudget, -f FILE)`, 'err');
   }
 
+  /**
+   * PSA + image-policy admission for a to-be-created Pod: on rejection, logs a
+   * FailedCreate event and prints the Forbidden error; returns whether it was
+   * admitted. Shared by `kubectl run` and `apply -f pod.yaml` — the sim's only
+   * two direct-Pod-creation paths.
+   */
+  function admitOrReject(print, containers, ns, name) {
+    const reject = (reason) => {
+      const message = `pods "${name}" is forbidden: ${reason}`;
+      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message });
+      print(`Error from server (Forbidden): ${esc(message)}`, 'err');
+      return false;
+    };
+    const psa = admitPod(engine, containers, ns);
+    if (!psa.allowed) return reject(`violates PodSecurity "${psa.level}:latest": ${psa.reason}`);
+    for (const c of containers) {
+      const imgCheck = checkImagePolicy(engine, c.image, ns);
+      if (!imgCheck.allowed) return reject(imgCheck.reason);
+    }
+    return true;
+  }
+
   function cmdRun(print, args, flags, rest) {
     const ns = flags.namespace || 'default';
     const name = args[1];
@@ -973,6 +997,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       const p = { apiVersion: 'v1', kind: 'Pod', metadata: { name, namespace: ns, labels: parseSelector(flags.labels) || { run: name } }, spec: { containers: [{ name, image: flags.image, ...(rest ? { command: rest } : {}) }] } };
       return print(esc(toYaml(p)));
     }
+    if (!admitOrReject(print, [{ name, image: flags.image }], ns, name)) return;
     engine.makePod({ name, ns, labels: parseSelector(flags.labels) || { run: name }, image: flags.image, command: rest || null });
     print(`pod/${esc(name)} created`, 'ok');
     print("<span class='info'>This is a bare pod — no controller owns it. If it dies or you delete it, nothing brings it back. Deployments exist for a reason.</span>");
@@ -991,14 +1016,19 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (WORKLOAD_KINDS[kind]) { WORKLOAD_KINDS[kind].applyDoc(engine, doc, dns, print); onMission('apply'); return; }
 
     if (kind === 'Namespace') {
-      if (engine.get('Namespace', null, name)) return print(`namespace/${name} unchanged`);
-      engine.makeNamespace(name);
+      const existingNs = engine.get('Namespace', null, name);
+      if (existingNs) {
+        if (meta.labels) Object.assign(existingNs.metadata.labels, meta.labels);
+        return print(`namespace/${name} configured`, 'ok');
+      }
+      engine.makeNamespace(name, undefined, meta.labels || {});
       return print(`namespace/${name} created`, 'ok');
     }
     if (kind === 'Pod') {
       if (engine.get('Pod', dns, name)) return print(`Error from server (Conflict): pods "${esc(name)}" already exists — most pod fields are immutable; delete it first`, 'err');
       const containers = (doc.spec && doc.spec.containers) || [];
       if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
+      if (!admitOrReject(print, containers, dns, name)) return;
       const common = {
         name, ns: dns, labels: meta.labels || {},
         volumes: (doc.spec && doc.spec.volumes) || null,
@@ -1019,6 +1049,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
           envFrom: c.envFrom || null,
           volumeMounts: c.volumeMounts || null,
           containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
+          securityContext: c.securityContext || null,
         });
       }
       onMission('apply');
@@ -1618,7 +1649,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const ns = flags.namespace || 'default';
     const kind = KIND_ALIASES[(args[1] || '').toLowerCase()];
     if (!kind) return print(`error: the server doesn't have a resource type "${esc(args[1] || '')}"`, 'err');
-    const obj = kind === 'Node' ? engine.get('Node', null, args[2] || '') : engine.get(kind, ns, args[2] || '');
+    const obj = CLUSTER_SCOPED.has(kind) ? engine.get(kind, null, args[2] || '') : engine.get(kind, ns, args[2] || '');
     if (!obj) return print(notFound(kind, args[2] || ''), 'err');
     const changes = args.slice(3);
     if (!changes.length) return print('error: at least one label update is required (key=value or key-)', 'err');
@@ -1710,6 +1741,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     const subject = parseAsSubject(flags.as);
     const ok = canI(engine, { verb, resource, subject, ns });
     onMission('can-i');
+    engine.addEvent({ ns, type: ok ? 'Normal' : 'Warning', reason: ok ? 'RBACAllowed' : 'RBACDenied', object: subject.kind + '/' + subject.name, message: `${subject.kind}:${subject.name} ${ok ? 'is allowed' : 'is forbidden'} to ${verb} ${resource} in ${ns}` });
     print(ok ? 'yes' : 'no', ok ? 'ok' : 'err');
     if (!ok) {
       print("<span class='info'>RBAC is deny-by-default: no Role/ClusterRole bound to this subject allows that verb on that resource (in this namespace). Grant it with a Role + RoleBinding.</span>");
