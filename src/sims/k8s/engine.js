@@ -1355,6 +1355,27 @@ export function createEngine({ onMission = () => {} } = {}) {
     return false;
   }
 
+  // ---------- GitOpsApp (Packaging & GitOps drill, step 16) ----------
+  /** A pointer at a Kustomize-rendered source path (lab-seeded or `kubectl apply -f`'d,
+   * like a real Argo CD Application/Flux Kustomization). Drift detection/sync itself
+   * lives in sims/k8s/gitops.js, outside the engine, since it needs the file store —
+   * this factory just gives it a store object to read and to show status on. */
+  function makeGitOpsApp({ name, ns = 'default', labels = null, sourcePath, autoSync = false }) {
+    return put({
+      apiVersion: 'gitops.sim/v1', kind: 'GitOpsApp',
+      metadata: { name, namespace: ns, labels: labels || {}, creationTimestamp: Date.now() },
+      spec: { sourcePath, autoSync: !!autoSync },
+      status: { syncStatus: 'Unknown', lastSyncedAt: null, lastDrift: [] },
+      sim: {},
+    });
+  }
+
+  /** Panel toggle for the GitOps drift lab: flip an app's auto-heal on/off. */
+  function setAutoSync(app, on) {
+    app.spec.autoSync = !!on;
+    notify();
+  }
+
   // ---------- PodDisruptionBudgets ----------
   /** Live PDB accounting: pods it covers and how many voluntary disruptions are allowed right now. */
   function pdbStatus(pdb) {
@@ -1434,7 +1455,7 @@ export function createEngine({ onMission = () => {} } = {}) {
     get, list, put, remove, events, addEvent,
     // factories
     makePod, makeDeployment, makeReplicaSet, makeService, makeNamespace, makeNode, makeServiceAccount,
-    makeJob, makeCronJob, makeDaemonSet, makeStatefulSet,
+    makeJob, makeCronJob, makeDaemonSet, makeStatefulSet, makeGitOpsApp,
     // helpers
     ownedPods, podsOwnedBy, replicaSetsOf, endpointsOf, podImage, depImage, nodeLoad, nodeRequested,
     pdbStatus, evictionBlockedBy, snapshotStore, restoreStore,
@@ -1443,7 +1464,7 @@ export function createEngine({ onMission = () => {} } = {}) {
     // lifecycle
     reconcile, markTerminating, flushTerminating, deletePodAndHeal, setNodeReady, deleteNamespaceContents,
     // interactive-lab ops
-    setAppState, setLeak,
+    setAppState, setLeak, setAutoSync,
     // ui
     subscribe, notify, view,
     onMission,

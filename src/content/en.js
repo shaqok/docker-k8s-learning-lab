@@ -3608,5 +3608,28 @@ export default {
   "btnHang": "😵 hang",
   "btn503": "🤒 503",
   "btnHeal": "😀 heal"
+ },
+ "m18": {
+  "title": "📦 Packaging & GitOps — Helm, Kustomize, drift",
+  "sub": "Three playgrounds for the packaging layer: make values.yaml really drive a Helm chart (including revision history and rollback), patch a Kustomize base from an overlay without touching it, and watch a GitOps controller revert hand-edited drift on its own. Missions are graded live as you type — no Check button.",
+  "_ncards": 0,
+  "missionsTitle": "Missions — graded live",
+  "docsTitle": "📖 In the real docs",
+  "btnReset": "Reset lab",
+  "btnSolve": "Solve it for me",
+  "solutionTitle": "Reference solution",
+  "solveNote": "Reference solution — install/upgrade/rollback, namePrefix/patches/patchesJson6902, and auto-sync vs manual sync. Watch the missions tick, then Reset and do it yourself.",
+  "termHead": "exam console — kubectl / helm / kustomize / gitops",
+  "greeting": "Simulated cluster. Edit the chart/overlay files in the Manifests pane, then run helm/kustomize/kubectl/gitops here. Type 'help' for kubectl commands.",
+  "panelReleases": "⎈ Releases",
+  "panelRevision": "rev",
+  "panelNoReleases": "no releases yet — helm install RELEASE chart/",
+  "panelDiff": "🧬 base vs overlays/prod",
+  "panelApps": "🔄 GitOps apps",
+  "panelSource": "source",
+  "panelMissing": "missing",
+  "panelModified": "modified",
+  "btnAutoSyncOn": "autoSync: on (click to disable)",
+  "btnAutoSyncOff": "autoSync: off (click to enable)"
  }
 };

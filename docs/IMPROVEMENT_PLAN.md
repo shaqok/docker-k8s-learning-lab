@@ -293,12 +293,12 @@ Sizes: S ≈ a sitting, M ≈ a weekend, L ≈ multiple weekends.
 
 ### NEXT — the senior layer
 
-| Step | Deliverable | Size |
-|---|---|---|
-| 16 | **Packaging & GitOps** — Helm install/upgrade/rollback, Kustomize overlays, drift-reconciliation lab | M |
-| 17 | **Security track (CKS)** — six-domain drill set + a third exam in the Exam Room | L |
-| 18 | **Observability & incident drills** — real `logs`, events, metrics, timed "3am pager" mode | M |
-| 19 | **Pedagogy layer** — tracks, prerequisites, next-step, spaced repetition | M |
+| Step | Deliverable | Size | Status |
+|---|---|---|---|
+| 16 | **Packaging & GitOps** — Helm install/upgrade/rollback, Kustomize overlays, drift-reconciliation lab | M | ✅ 2026-07-17 — module m18 (`src/data/packagingLabs.js` + `PackagingLabs.jsx`): a hand-written Go-template interpreter with real `if`/`else`/`range` control flow (`src/sims/k8s/helmTemplate.js`) drives Helm install/upgrade/rollback with release-scoped revision history; a Kustomize base/overlay builder (`src/sims/k8s/kustomize.js`) composes bases recursively and layers namePrefix/commonLabels/images/replicas transformers, then whole-object strategic-merge patches, then an independent RFC-6902 JSON-patch engine; a GitOps drift lab (`src/sims/k8s/gitops.js`) reverts hand-edited drift by re-calling kubectl's own `applyDoc` — auto-sync and manual `gitops sync` are the same code path, one automatic and one on request. A shared structural diff (`src/sims/k8s/diff.js`) backs both the Kustomize live diff panel and GitOps drift classification. `kubectl.js` gained a `-k`/`--kustomize` flag on `apply` and now exports `applyDoc`/`deleteObj` so the new `helm`/`kustomize`/`gitops` side-CLI (`src/sims/k8s/packaging.js`) reuses the real per-kind create/update logic instead of re-deriving it; `k8sSim.js` composes the GitOps tick into `reconcile()` via the same forward-ref idiom `onEdit` already used. |
+| 17 | **Security track (CKS)** — six-domain drill set + a third exam in the Exam Room | L | ⏳ |
+| 18 | **Observability & incident drills** — real `logs`, events, metrics, timed "3am pager" mode | M | ⏳ |
+| 19 | **Pedagogy layer** — tracks, prerequisites, next-step, spaced repetition | M | ⏳ |
 
 ### LATER — strategic bets
 

@@ -37,8 +37,8 @@ export const ROADMAP_EN=[
  ["Jobs, CronJobs, DaemonSets","m8"],
  ["Deploy a 2-tier app with probes & limits on kind","rw"]]},
 {s:"Stage 5 · Production & Expert",c:"#f85149",note:"Goal: operate Kubernetes as a platform — safely, observably, repeatably.",items:[
- ["Helm: install & template with charts","m9"],
- ["GitOps with Argo CD / Flux","m9"],
+ ["Helm: install & template with charts","m18"],
+ ["GitOps with Argo CD / Flux","m18"],
  ["Observability: Prometheus, Grafana, logs, events","m9"],
  ["RBAC, ServiceAccounts, securityContext","m9"],
  ["NetworkPolicies & Pod Security Standards","m9"],
@@ -74,4 +74,4 @@ export const ROADMAP_KO=[
 {s:"6단계 · GPU & ML 인프라",note:"목표: ML 워크로드가 GPU를 얻고, 나누고, 갈아 넣는 방식 이해하기.",items:["NVIDIA Container Toolkit; --gpus; 드라이버 vs CUDA 런타임","Device plugin & nvidia.com/gpu 스케줄링","Pending GPU 파드, 빈 패킹, GPU 통째 할당","GPU 공유: MIG vs 타임슬라이싱","GPU Operator & DCGM 모니터링","분산 학습: NCCL, torchrun, 갱 스케줄링, Kueue","저렴한 스팟 GPU(T4)를 빌려 --gpus 실전 실행"]},
 {s:"7단계 · 자격증 — CKA / CKAD",note:"목표: 지식을 합격 점수로 바꾸기 — 고장 난 클러스터, 시간 제한 과제, 손에 익은 명령어.",items:["고장 난 클러스터 디버깅: CrashLoopBackOff, ImagePullBackOff, Pending","빈 엔드포인트: selector와 targetPort 불일치","프로브, requests/limits, ConfigMap & Secret — 장애 주입 환경에서","멀티 컨테이너 파드: 사이드카 & initContainer","스케줄링(taint, affinity)과 RBAC — kubectl auth can-i","NetworkPolicy, Ingress & Gateway API 라우팅","클러스터 운영: drain vs PDB, kubeadm 업그레이드, etcd 스냅샷/복원","시험 도메인별로 퀴즈를 풀고 틀린 문제를 모두 복습","시간 제한 모의고사 응시; 준비도 대시보드에서 가장 약한 도메인 확인","실제 CKA 또는 CKAD를 신청하고 합격하기"]},
 ];;
-export const MODNAMES={en:{m1:"Containers 101",m2:"Docker Lab",m3:"K8s Concepts",m4:"K8s Lab",m5:"GPU Module",m6:"Quiz",m7:"Docker in Depth",m8:"Operator Toolkit",m9:"Production",m10:"Troubleshooting",m11:"CKAD Drills",m12:"CKA Drills",m13:"Networking Drills",m14:"Cluster Ops Drills",m15:"Exam Room",m16:"Docker Drills",m17:"Pod Design",rw:"🌍 real world"},ko:{m1:"컨테이너 101",m2:"Docker 실습",m3:"K8s 개념",m4:"K8s 실습",m5:"GPU 모듈",m6:"퀴즈",m7:"Docker 심화",m8:"운영 툴킷",m9:"프로덕션",m10:"트러블슈팅",m11:"CKAD 드릴",m12:"CKA 드릴",m13:"네트워킹 드릴",m14:"클러스터 운영 드릴",m15:"시험장",m16:"Docker 드릴",m17:"파드 설계",rw:"🌍 실전"}};
+export const MODNAMES={en:{m1:"Containers 101",m2:"Docker Lab",m3:"K8s Concepts",m4:"K8s Lab",m5:"GPU Module",m6:"Quiz",m7:"Docker in Depth",m8:"Operator Toolkit",m9:"Production",m10:"Troubleshooting",m11:"CKAD Drills",m12:"CKA Drills",m13:"Networking Drills",m14:"Cluster Ops Drills",m15:"Exam Room",m16:"Docker Drills",m17:"Pod Design",m18:"Packaging & GitOps",rw:"🌍 real world"},ko:{m1:"컨테이너 101",m2:"Docker 실습",m3:"K8s 개념",m4:"K8s 실습",m5:"GPU 모듈",m6:"퀴즈",m7:"Docker 심화",m8:"운영 툴킷",m9:"프로덕션",m10:"트러블슈팅",m11:"CKAD 드릴",m12:"CKA 드릴",m13:"네트워킹 드릴",m14:"클러스터 운영 드릴",m15:"시험장",m16:"Docker 드릴",m17:"파드 설계",m18:"패키징 & GitOps",rw:"🌍 실전"}};

@@ -5,6 +5,7 @@ import { CKA_LABS } from './ckaLabs.js';
 import { NET_LABS } from './netLabs.js';
 import { OPS_LABS } from './opsLabs.js';
 import { POD_LABS } from './podLabs.js';
+import { PACKAGING_LABS } from './packagingLabs.js';
 
 /**
  * Per-exam-domain readiness — pure functions over progress state so the
@@ -32,6 +33,9 @@ export const PRACTICE_SOURCES = [
   { key: 'ops/upgrade', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'upgrade'), done: (p) => (p.opsDone.upgrade || []).length },
   { key: 'ops/etcd', cka: 'arch', ckad: null, total: labMissions(OPS_LABS, 'etcd'), done: (p) => (p.opsDone.etcd || []).length },
   { key: 'pod/sidecars', cka: null, ckad: 'design', total: labMissions(POD_LABS, 'sidecars'), done: (p) => (p.podDone.sidecars || []).length },
+  { key: 'pkg/helm', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'helm'), done: (p) => (p.packagingDone.helm || []).length },
+  { key: 'pkg/kustomize', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'kustomize'), done: (p) => (p.packagingDone.kustomize || []).length },
+  { key: 'pkg/gitops', cka: null, ckad: 'deploy', total: labMissions(PACKAGING_LABS, 'gitops'), done: (p) => (p.packagingDone.gitops || []).length },
 ];
 
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : null);

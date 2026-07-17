@@ -3595,5 +3595,28 @@ export default {
   "btnHang": "😵 행",
   "btn503": "🤒 503",
   "btnHeal": "😀 회복"
+ },
+ "m18": {
+  "title": "📦 패키징 & GitOps — Helm, Kustomize, 드리프트",
+  "sub": "패키징 계층을 위한 세 가지 놀이터: values.yaml이 Helm 차트를 실제로 좌우하게(리비전 기록·롤백 포함), Kustomize base를 건드리지 않고 오버레이로 패치하기, 그리고 GitOps 컨트롤러가 손으로 고친 드리프트를 스스로 되돌리는 걸 지켜보기. 미션은 입력하는 동안 실시간으로 채점됩니다 — Check 버튼이 없습니다.",
+  "_ncards": 0,
+  "missionsTitle": "미션 — 실시간 채점",
+  "docsTitle": "📖 실제 문서에서 찾기",
+  "btnReset": "랩 초기화",
+  "btnSolve": "풀이 실행하기",
+  "solutionTitle": "모범 답안",
+  "solveNote": "모범 답안 — install/upgrade/rollback, namePrefix/patches/patchesJson6902, 그리고 auto-sync 대 수동 sync. 미션이 채점되는 걸 지켜본 뒤, 초기화하고 직접 해 보세요.",
+  "termHead": "시험 콘솔 — kubectl / helm / kustomize / gitops",
+  "greeting": "시뮬레이션 클러스터입니다. Manifests 패널에서 차트/오버레이 파일을 편집한 뒤 여기서 helm/kustomize/kubectl/gitops를 실행하세요. 'help'로 kubectl 명령을 확인하세요.",
+  "panelReleases": "⎈ 릴리스",
+  "panelRevision": "리비전",
+  "panelNoReleases": "아직 릴리스가 없습니다 — helm install RELEASE chart/",
+  "panelDiff": "🧬 base vs overlays/prod",
+  "panelApps": "🔄 GitOps 앱",
+  "panelSource": "소스",
+  "panelMissing": "누락",
+  "panelModified": "변경됨",
+  "btnAutoSyncOn": "autoSync: 켜짐 (클릭해서 끄기)",
+  "btnAutoSyncOff": "autoSync: 꺼짐 (클릭해서 켜기)"
  }
 };
