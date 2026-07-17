@@ -5,11 +5,12 @@ import { K8S_NODE_CAP, K8S_NODE_ALLOC, K8S_IMAGES, imageRepo, imageKnown, qosOf 
 import { canI, parseAsSubject, normResource } from './rbac.js';
 import { canConnect } from './netpol.js';
 import { resolveHttp } from './routing.js';
+import { buildKustomization } from './kustomize.js';
 
 /* ---------- CLI parsing ---------- */
 
-const ALIAS = { '-n': 'namespace', '--namespace': 'namespace', '-l': 'selector', '--selector': 'selector', '-o': 'output', '--output': 'output', '-f': 'filename', '--filename': 'filename', '-A': 'all-namespaces', '--all-namespaces': 'all-namespaces', '-c': 'container', '--container': 'container' };
-const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H', '-c', '--container', '--schedule', '--completions', '--parallelism', '--from']);
+const ALIAS = { '-n': 'namespace', '--namespace': 'namespace', '-l': 'selector', '--selector': 'selector', '-o': 'output', '--output': 'output', '-f': 'filename', '--filename': 'filename', '-k': 'kustomize', '--kustomize': 'kustomize', '-A': 'all-namespaces', '--all-namespaces': 'all-namespaces', '-c': 'container', '--container': 'container' };
+const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '-k', '--kustomize', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H', '-c', '--container', '--schedule', '--completions', '--parallelism', '--from']);
 
 /**
  * Quote-aware split so a quoted cron schedule survives as one token — embedded
@@ -224,6 +225,36 @@ const WORKLOAD_KINDS = {
       print(`daemonset.apps/${esc(doc.metadata.name)} created`, 'ok');
     },
   },
+  /**
+   * GitOpsApp (step 16) — an Argo CD/Flux-flavored pointer at a Kustomize-rendered
+   * source path. Registered here (not a bespoke branch) purely for the free
+   * get/describe/apply CLI surface; the actual drift-detection/sync logic lives in
+   * sims/k8s/gitops.js and runs from the facade's reconcile composition, not from
+   * anything in this table.
+   */
+  GitOpsApp: {
+    aliases: ['gitopsapp', 'gitopsapps'],
+    plural: 'gitopsapps.gitops.sim',
+    getHeader: () => pad('NAME', 20) + pad('SOURCE', 24) + pad('SYNC', 12) + pad('AUTOSYNC', 10) + 'AGE',
+    getRow: (engine, o) => pad(o.metadata.name, 20) + pad(o.spec.sourcePath, 24) + pad(o.status.syncStatus || 'Unknown', 12) + pad(o.spec.autoSync ? 'True' : 'False', 10) + fmtAge(o.metadata.creationTimestamp),
+    describe: (engine, o) => {
+      const drift = o.status.lastDrift || [];
+      return `Name:            ${o.metadata.name}\nNamespace:       ${o.metadata.namespace}\nSource Path:     ${esc(o.spec.sourcePath)}\nAuto Sync:       ${o.spec.autoSync ? 'True' : 'False'}\nSync Status:     ${o.status.syncStatus || 'Unknown'}\nLast Synced:     ${o.status.lastSyncedAt ? new Date(o.status.lastSyncedAt).toISOString() : '&lt;none&gt;'}\n` +
+        (drift.length ? 'Drifted Resources:\n' + drift.map((d) => `  ${d.type === 'missing' ? 'missing ' : 'modified'}  ${esc(d.kind)}/${esc(d.name)}`).join('\n') : 'Drifted Resources:  &lt;none&gt;');
+    },
+    applyDoc: (engine, doc, dns, print) => {
+      const spec = doc.spec || {};
+      if (!spec.sourcePath) return print('error: spec.sourcePath is required', 'err');
+      const existed = engine.get('GitOpsApp', dns, doc.metadata.name);
+      if (existed) {
+        existed.spec.sourcePath = spec.sourcePath;
+        existed.spec.autoSync = !!spec.autoSync;
+        return print(`gitopsapp.gitops.sim/${esc(doc.metadata.name)} configured`, 'ok');
+      }
+      engine.makeGitOpsApp({ name: doc.metadata.name, ns: dns, labels: doc.metadata.labels || null, sourcePath: spec.sourcePath, autoSync: !!spec.autoSync });
+      print(`gitopsapp.gitops.sim/${esc(doc.metadata.name)} created`, 'ok');
+    },
+  },
   StatefulSet: {
     aliases: ['statefulset', 'statefulsets', 'sts'],
     plural: 'statefulsets.apps',
@@ -264,7 +295,7 @@ for (const [kind, def] of Object.entries(WORKLOAD_KINDS)) {
 
 /* ---------- kubectl ---------- */
 
-export function createKubectl(engine, { files = null, onEdit = null, host = null } = {}) {
+export function createKubectl(engine, { files = null, onEdit = null, host = null, packaging = null } = {}) {
   const onMission = engine.onMission;
   let troubleshootHintShown = false;
 
@@ -1212,7 +1243,14 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
   }
 
   function cmdApply(print, args, flags) {
-    if (!flags.filename) return print('error: must specify -f FILE', 'err');
+    if (flags.kustomize) {
+      if (!files) return print('error: no manifest files available in this lab', 'err');
+      const { docs, error } = buildKustomization(files, String(flags.kustomize).replace(/\/+$/, ''));
+      if (error) return print(`error: ${esc(error)}`, 'err');
+      for (const doc of docs) applyDoc(print, doc, flags.namespace || 'default');
+      return;
+    }
+    if (!flags.filename) return print('error: must specify -f FILE or -k DIR', 'err');
     if (!files) return print('error: no manifest files available in this lab', 'err');
     const text = files.read(flags.filename);
     if (text == null) return print(`error: the path "${esc(flags.filename)}" does not exist — create it in the Manifests editor →`, 'err');
@@ -1761,6 +1799,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       return print("This is the Kubernetes lab — here you speak kubectl, not docker. K8s tells each node's container runtime what to run; you never docker-run manually.", 'err');
     if (t[0] === 'curl') return cmdCurl(out, t);
     if (host && host.handles(t[0])) return host.exec(cmd, out);
+    if (packaging && packaging.handles(t[0])) return packaging.exec(cmd, out);
     if (t[0] !== 'kubectl' && t[0] !== 'k') return print(`bash: ${esc(t[0])}: command not found (try 'help')`, 'err');
 
     const { args, flags, rest } = parseTokens(t.slice(1));
@@ -1807,5 +1846,5 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
   }
 
-  return { exec };
+  return { exec, applyDoc, deleteObj };
 }

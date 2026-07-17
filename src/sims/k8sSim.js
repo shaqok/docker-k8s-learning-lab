@@ -1,6 +1,7 @@
 import { createEngine, K8S_NODE_CAP, K8S_IMAGES } from './k8s/engine.js';
 import { createKubectl } from './k8s/kubectl.js';
 import { createHostOps } from './k8s/hostops.js';
+import { createPackagingOps } from './k8s/packaging.js';
 
 export { K8S_NODE_CAP, K8S_IMAGES };
 
@@ -43,15 +44,22 @@ export function createK8sSim({ onMission = () => {}, starterFiles = { 'pod.yaml'
   const files = createFileStore(starterFiles);
   let onEditCb = null;
   const host = createHostOps(engine, { onMission });
-  const kubectl = createKubectl(engine, { files, onEdit: (f) => onEditCb && onEditCb(f), host });
+  // `packaging` (helm/kustomize/gitops) needs kubectl's applyDoc/deleteObj, and
+  // kubectl needs to dispatch to packaging — the same forward-ref trick as
+  // `onEditCb` above resolves the circular construction order.
+  const packagingRef = { current: null };
+  const packaging = { handles: (w) => !!packagingRef.current && packagingRef.current.handles(w), exec: (c, p) => packagingRef.current.exec(c, p) };
+  const kubectl = createKubectl(engine, { files, onEdit: (f) => onEditCb && onEditCb(f), host, packaging });
+  packagingRef.current = createPackagingOps(engine, { files, onMission, applyDoc: kubectl.applyDoc, deleteObj: kubectl.deleteObj });
   return {
     exec: kubectl.exec,
-    reconcile: engine.reconcile,
+    reconcile: () => { engine.reconcile(); packagingRef.current.gitopsTick(); },
     subscribe: engine.subscribe,
     view: engine.view,
     files,
     engine,
     host,
+    packaging: packagingRef.current,
     setOnEdit: (fn) => { onEditCb = fn; },
   };
 }
