@@ -29,7 +29,8 @@ function violatesBaseline(sc) {
   return null;
 }
 
-/** Restricted: baseline, plus must run as non-root, drop escalation, drop ALL capabilities. */
+/** Restricted: baseline, plus must run as non-root, drop escalation, drop ALL capabilities
+ * (only NET_BIND_SERVICE may be added back — the real Pod Security Standard's exact allowance). */
 function violatesRestricted(sc) {
   const baseline = violatesBaseline(sc);
   if (baseline) return baseline;
@@ -38,6 +39,9 @@ function violatesRestricted(sc) {
   if (sc.allowPrivilegeEscalation !== false) return 'securityContext.allowPrivilegeEscalation must be false';
   const dropped = (sc.capabilities && sc.capabilities.drop) || [];
   if (!dropped.includes('ALL')) return "securityContext.capabilities.drop must include 'ALL'";
+  const added = (sc.capabilities && sc.capabilities.add) || [];
+  const badAdd = added.find((c) => c !== 'NET_BIND_SERVICE');
+  if (badAdd) return `capability ${badAdd} is disallowed — only NET_BIND_SERVICE may be added back`;
   return null;
 }
 

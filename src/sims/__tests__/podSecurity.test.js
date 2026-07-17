@@ -30,6 +30,17 @@ describe('podSecurity.admitPod', () => {
     expect(admitPod(sim.engine, [{ name: 'c', image: 'nginx', securityContext: restrictedOk }], 'default').allowed).toBe(true);
     expect(admitPod(sim.engine, [{ name: 'c', image: 'nginx', securityContext: { ...restrictedOk, runAsNonRoot: false } }], 'default').allowed).toBe(false);
   });
+
+  it('restricted only allows NET_BIND_SERVICE to be added back — any other added capability is rejected', () => {
+    const sim = createK8sSim();
+    sim.engine.get('Namespace', null, 'default').metadata.labels['pod-security.kubernetes.io/enforce'] = 'restricted';
+    const withNetBind = { ...restrictedOk, capabilities: { drop: ['ALL'], add: ['NET_BIND_SERVICE'] } };
+    expect(admitPod(sim.engine, [{ name: 'c', image: 'nginx', securityContext: withNetBind }], 'default').allowed).toBe(true);
+    const withOther = { ...restrictedOk, capabilities: { drop: ['ALL'], add: ['SYS_TIME'] } };
+    const r = admitPod(sim.engine, [{ name: 'c', image: 'nginx', securityContext: withOther }], 'default');
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toMatch(/SYS_TIME/);
+  });
 });
 
 describe('kubectl PodSecurity admission wiring', () => {

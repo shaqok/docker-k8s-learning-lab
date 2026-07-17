@@ -966,6 +966,28 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     print(`error: unknown create target "${esc(what)}" (supported: deployment, job, cronjob, namespace, configmap, secret generic, serviceaccount, role, clusterrole, rolebinding, clusterrolebinding, ingress, poddisruptionbudget, -f FILE)`, 'err');
   }
 
+  /**
+   * PSA + image-policy admission for a to-be-created Pod: on rejection, logs a
+   * FailedCreate event and prints the Forbidden error; returns whether it was
+   * admitted. Shared by `kubectl run` and `apply -f pod.yaml` — the sim's only
+   * two direct-Pod-creation paths.
+   */
+  function admitOrReject(print, containers, ns, name) {
+    const reject = (reason) => {
+      const message = `pods "${name}" is forbidden: ${reason}`;
+      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message });
+      print(`Error from server (Forbidden): ${esc(message)}`, 'err');
+      return false;
+    };
+    const psa = admitPod(engine, containers, ns);
+    if (!psa.allowed) return reject(`violates PodSecurity "${psa.level}:latest": ${psa.reason}`);
+    for (const c of containers) {
+      const imgCheck = checkImagePolicy(engine, c.image, ns);
+      if (!imgCheck.allowed) return reject(imgCheck.reason);
+    }
+    return true;
+  }
+
   function cmdRun(print, args, flags, rest) {
     const ns = flags.namespace || 'default';
     const name = args[1];
@@ -975,16 +997,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       const p = { apiVersion: 'v1', kind: 'Pod', metadata: { name, namespace: ns, labels: parseSelector(flags.labels) || { run: name } }, spec: { containers: [{ name, image: flags.image, ...(rest ? { command: rest } : {}) }] } };
       return print(esc(toYaml(p)));
     }
-    const psa = admitPod(engine, [{ name, image: flags.image }], ns);
-    if (!psa.allowed) {
-      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: violates PodSecurity "${psa.level}:latest": ${psa.reason}` });
-      return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
-    }
-    const imgCheck = checkImagePolicy(engine, flags.image, ns);
-    if (!imgCheck.allowed) {
-      engine.addEvent({ ns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: ${imgCheck.reason}` });
-      return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
-    }
+    if (!admitOrReject(print, [{ name, image: flags.image }], ns, name)) return;
     engine.makePod({ name, ns, labels: parseSelector(flags.labels) || { run: name }, image: flags.image, command: rest || null });
     print(`pod/${esc(name)} created`, 'ok');
     print("<span class='info'>This is a bare pod — no controller owns it. If it dies or you delete it, nothing brings it back. Deployments exist for a reason.</span>");
@@ -1015,18 +1028,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       if (engine.get('Pod', dns, name)) return print(`Error from server (Conflict): pods "${esc(name)}" already exists — most pod fields are immutable; delete it first`, 'err');
       const containers = (doc.spec && doc.spec.containers) || [];
       if (!containers.length || !containers[0].image) return print('error: spec.containers[0].image is required', 'err');
-      const psa = admitPod(engine, containers, dns);
-      if (!psa.allowed) {
-        engine.addEvent({ ns: dns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: violates PodSecurity "${psa.level}:latest": ${psa.reason}` });
-        return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: violates PodSecurity "${psa.level}:latest": ${esc(psa.reason)}`, 'err');
-      }
-      for (const c of containers) {
-        const imgCheck = checkImagePolicy(engine, c.image, dns);
-        if (!imgCheck.allowed) {
-          engine.addEvent({ ns: dns, type: 'Warning', reason: 'FailedCreate', object: 'Pod/' + name, message: `pods "${name}" is forbidden: ${imgCheck.reason}` });
-          return print(`Error from server (Forbidden): pods "${esc(name)}" is forbidden: ${esc(imgCheck.reason)}`, 'err');
-        }
-      }
+      if (!admitOrReject(print, containers, dns, name)) return;
       const common = {
         name, ns: dns, labels: meta.labels || {},
         volumes: (doc.spec && doc.spec.volumes) || null,

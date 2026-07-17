@@ -83,10 +83,11 @@ export function copyCost(src, fromStage) {
 }
 
 /**
- * Fake CVE data for the Supply Chain Security lab's `trivy image` — keyed the
- * same way as BASE_IMAGES (exact ref, falling back to the bare repo). Slim/
- * alpine variants and anything not listed here scan clean: same "smaller base,
- * smaller attack surface" lesson the size table already teaches.
+ * Fake CVE data for the Supply Chain Security lab's `trivy image` — exact-ref
+ * keyed (see vulnerabilitiesFor below; unlike BASE_IMAGES, this does NOT fall
+ * back to the bare repo). Slim/alpine variants and anything not listed here
+ * scan clean: same "smaller base, smaller attack surface" lesson the size
+ * table already teaches.
  */
 export const VULN_CATALOG = {
   node: [{ id: 'CVE-2024-21538', severity: 'HIGH', pkg: 'cross-spawn' }],
