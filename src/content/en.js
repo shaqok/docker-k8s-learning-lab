@@ -2918,400 +2918,397 @@ export default {
  "m9": {
   "title": "Production & the Ecosystem",
   "sub": "Stage 5: running Kubernetes for real — packaging, delivery, observability, security, extension.",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Helm — the package manager"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Ten microservices × four environments = YAML sprawl. A Helm ",
-        {
-         "t": "b",
-         "c": [
-          "chart"
-         ]
-        },
-        " is templated YAML; ",
-        {
-         "t": "code",
-         "c": [
-          "values.yaml"
-         ]
-        },
-        " holds what differs (",
-        {
-         "t": "code",
-         "c": [
-          "replicas: {{ .Values.replicaCount }}"
-         ]
-        },
-        "). Then: ",
-        {
-         "t": "code",
-         "c": [
-          "helm install prometheus prometheus-community/kube-prometheus-stack"
-         ]
-        },
-        " — entire complex apps in one command, ",
-        {
-         "t": "code",
-         "c": [
-          "helm upgrade"
-         ]
-        },
-        "/",
-        {
-         "t": "code",
-         "c": [
-          "rollback"
-         ]
-        },
-        " to manage them. You'll consume charts long before you write one."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "GitOps — the reconciliation loop, one level up"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "You already know the core K8s idea: controllers make actual state match desired state. ",
-        {
-         "t": "b",
-         "c": [
-          "GitOps applies the same loop to deployment itself"
-         ]
-        },
-        ": a git repo holds all manifests; an in-cluster agent (",
-        {
-         "t": "b",
-         "c": [
-          "Argo CD"
-         ]
-        },
-        " or ",
-        {
-         "t": "b",
-         "c": [
-          "Flux"
-         ]
-        },
-        ") continuously diffs cluster vs repo and syncs. Deploy = merge a PR. Rollback = ",
-        {
-         "t": "code",
-         "c": [
-          "git revert"
-         ]
-        },
-        ". Nobody runs ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl apply"
-         ]
-        },
-        " against prod by hand, and the cluster can be rebuilt from the repo."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Observability"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Metrics:"
-         ]
-        },
-        " Prometheus scrapes everything (pods, nodes, kube-state-metrics); Grafana dashboards; Alertmanager pages you. Watch the golden signals: latency, traffic, errors, saturation. ",
-        {
-         "t": "b",
-         "c": [
-          "Logs:"
-         ]
-        },
-        " stdout → node agent (Fluent Bit) → Loki/Elastic; ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl logs"
-         ]
-        },
-        " doesn't scale past a few pods. ",
-        {
-         "t": "b",
-         "c": [
-          "Events:"
-         ]
-        },
-        " ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl get events"
-         ]
-        },
-        " / ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        " — your first debugging stop, as you saw with FailedScheduling. Debug flow: ",
-        {
-         "t": "code",
-         "c": [
-          "get pods"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        " (events) → ",
-        {
-         "t": "code",
-         "c": [
-          "logs"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "exec"
-         ]
-        },
-        "."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Security — the four layers"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "RBAC"
-         ]
-        },
-        ": who can do what — Roles (verbs on resources) bound to users/ServiceAccounts. Every pod runs as a ServiceAccount; least privilege applies to software too."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Pod security"
-         ]
-        },
-        ": ",
-        {
-         "t": "code",
-         "c": [
-          "securityContext"
-         ]
-        },
-        " — ",
-        {
-         "t": "code",
-         "c": [
-          "runAsNonRoot"
-         ]
-        },
-        ", drop capabilities, read-only root FS. Pod Security Standards enforce this per namespace."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Network"
-         ]
-        },
-        ": by default ",
-        {
-         "t": "i",
-         "c": [
-          "every pod can talk to every pod"
-         ]
-        },
-        ". NetworkPolicies are firewalls on labels: \"db accepts traffic only from app=api\"."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Supply chain"
-         ]
-        },
-        ": scan images (Trivy), pin digests, sign (cosign), minimal base images — Stage 2's distroless habit pays off here."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "CRDs & Operators — extending Kubernetes itself"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "A ",
-        {
-         "t": "b",
-         "c": [
-          "CustomResourceDefinition"
-         ]
-        },
-        " teaches the API server a new object type; an ",
-        {
-         "t": "b",
-         "c": [
-          "Operator"
-         ]
-        },
-        " is a custom controller that reconciles it. ",
-        {
-         "t": "code",
-         "c": [
-          "kind: Certificate"
-         ]
-        },
-        " (cert-manager renews TLS), ",
-        {
-         "t": "code",
-         "c": [
-          "kind: PostgresCluster"
-         ]
-        },
-        " (operator handles failover/backups), and — closing the GPU loop — the ",
-        {
-         "t": "b",
-         "c": [
-          "NVIDIA GPU Operator"
-         ]
-        },
-        ", which installs drivers, device plugin, and DCGM monitoring on every GPU node for you. When you understand operators, you understand why people say Kubernetes is a platform for building platforms."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Running the cluster itself"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Managed control planes (GKE/EKS/AKS) are the default — you keep node pools, upgrades, and cost. Know the drill even so: control-plane upgrade → node pools (drain/cordon one node at a time, one minor version per hop), ",
-        {
-         "t": "b",
-         "c": [
-          "etcd backups"
-         ]
-        },
-        " before anything, PodDisruptionBudgets so drains don't take down your quorum. Tooling on your laptop: kind for CI/testing, k3s at the edge, kubeadm to learn what managed services hide (and what CKA tests)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
+  "helmCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Helm — the package manager"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Ten microservices × four environments = YAML sprawl. A Helm ",
+       {
+        "t": "b",
+        "c": [
+         "chart"
+        ]
+       },
+       " is templated YAML; ",
+       {
+        "t": "code",
+        "c": [
+         "values.yaml"
+        ]
+       },
+       " holds what differs (",
+       {
+        "t": "code",
+        "c": [
+         "replicas: {{ .Values.replicaCount }}"
+        ]
+       },
+       "). Then: ",
+       {
+        "t": "code",
+        "c": [
+         "helm install prometheus prometheus-community/kube-prometheus-stack"
+        ]
+       },
+       " — entire complex apps in one command, ",
+       {
+        "t": "code",
+        "c": [
+         "helm upgrade"
+        ]
+       },
+       "/",
+       {
+        "t": "code",
+        "c": [
+         "rollback"
+        ]
+       },
+       " to manage them. You'll consume charts long before you write one."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "gitopsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "GitOps — the reconciliation loop, one level up"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "You already know the core K8s idea: controllers make actual state match desired state. ",
+       {
+        "t": "b",
+        "c": [
+         "GitOps applies the same loop to deployment itself"
+        ]
+       },
+       ": a git repo holds all manifests; an in-cluster agent (",
+       {
+        "t": "b",
+        "c": [
+         "Argo CD"
+        ]
+       },
+       " or ",
+       {
+        "t": "b",
+        "c": [
+         "Flux"
+        ]
+       },
+       ") continuously diffs cluster vs repo and syncs. Deploy = merge a PR. Rollback = ",
+       {
+        "t": "code",
+        "c": [
+         "git revert"
+        ]
+       },
+       ". Nobody runs ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl apply"
+        ]
+       },
+       " against prod by hand, and the cluster can be rebuilt from the repo."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "obsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Observability"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Metrics:"
+        ]
+       },
+       " Prometheus scrapes everything (pods, nodes, kube-state-metrics); Grafana dashboards; Alertmanager pages you. Watch the golden signals: latency, traffic, errors, saturation. ",
+       {
+        "t": "b",
+        "c": [
+         "Logs:"
+        ]
+       },
+       " stdout → node agent (Fluent Bit) → Loki/Elastic; ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl logs"
+        ]
+       },
+       " doesn't scale past a few pods. ",
+       {
+        "t": "b",
+        "c": [
+         "Events:"
+        ]
+       },
+       " ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl get events"
+        ]
+       },
+       " / ",
+       {
+        "t": "code",
+        "c": [
+         "describe"
+        ]
+       },
+       " — your first debugging stop, as you saw with FailedScheduling. Debug flow: ",
+       {
+        "t": "code",
+        "c": [
+         "get pods"
+        ]
+       },
+       " → ",
+       {
+        "t": "code",
+        "c": [
+         "describe"
+        ]
+       },
+       " (events) → ",
+       {
+        "t": "code",
+        "c": [
+         "logs"
+        ]
+       },
+       " → ",
+       {
+        "t": "code",
+        "c": [
+         "exec"
+        ]
+       },
+       "."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "secCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Security — the four layers"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "RBAC"
+        ]
+       },
+       ": who can do what — Roles (verbs on resources) bound to users/ServiceAccounts. Every pod runs as a ServiceAccount; least privilege applies to software too."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Pod security"
+        ]
+       },
+       ": ",
+       {
+        "t": "code",
+        "c": [
+         "securityContext"
+        ]
+       },
+       " — ",
+       {
+        "t": "code",
+        "c": [
+         "runAsNonRoot"
+        ]
+       },
+       ", drop capabilities, read-only root FS. Pod Security Standards enforce this per namespace."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Network"
+        ]
+       },
+       ": by default ",
+       {
+        "t": "i",
+        "c": [
+         "every pod can talk to every pod"
+        ]
+       },
+       ". NetworkPolicies are firewalls on labels: \"db accepts traffic only from app=api\"."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Supply chain"
+        ]
+       },
+       ": scan images (Trivy), pin digests, sign (cosign), minimal base images — Stage 2's distroless habit pays off here."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "crdCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "CRDs & Operators — extending Kubernetes itself"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "A ",
+       {
+        "t": "b",
+        "c": [
+         "CustomResourceDefinition"
+        ]
+       },
+       " teaches the API server a new object type; an ",
+       {
+        "t": "b",
+        "c": [
+         "Operator"
+        ]
+       },
+       " is a custom controller that reconciles it. ",
+       {
+        "t": "code",
+        "c": [
+         "kind: Certificate"
+        ]
+       },
+       " (cert-manager renews TLS), ",
+       {
+        "t": "code",
+        "c": [
+         "kind: PostgresCluster"
+        ]
+       },
+       " (operator handles failover/backups), and — closing the GPU loop — the ",
+       {
+        "t": "b",
+        "c": [
+         "NVIDIA GPU Operator"
+        ]
+       },
+       ", which installs drivers, device plugin, and DCGM monitoring on every GPU node for you. When you understand operators, you understand why people say Kubernetes is a platform for building platforms."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "clusterCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Running the cluster itself"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Managed control planes (GKE/EKS/AKS) are the default — you keep node pools, upgrades, and cost. Know the drill even so: control-plane upgrade → node pools (drain/cordon one node at a time, one minor version per hop), ",
+       {
+        "t": "b",
+        "c": [
+         "etcd backups"
+        ]
+       },
+       " before anything, PodDisruptionBudgets so drains don't take down your quorum. Tooling on your laptop: kind for CI/testing, k3s at the edge, kubeadm to learn what managed services hide (and what CKA tests)."
+      ]
+     },
+     "\n"
+    ]
+   }
   ]
  },
  "m10": {
