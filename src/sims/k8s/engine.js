@@ -140,11 +140,17 @@ export function createEngine({ onMission = () => {} } = {}) {
    */
   function addEvent({ ns = 'default', type = 'Normal', reason, object, message }) {
     const now = Date.now();
-    const same = events.find((e) => e.object === object && e.reason === reason && e.message === message);
-    if (same) {
+    const idx = events.findIndex((e) => e.object === object && e.reason === reason && e.message === message);
+    if (idx >= 0) {
+      const same = events[idx];
       same.count++;
       same.t = now;
       same.lastTimestamp = now;
+      // move it to the end: the array stays ordered by lastTimestamp, so the
+      // ring evicts genuinely stale events rather than a storm that is still
+      // firing, and any "newest N" window keeps showing it
+      events.splice(idx, 1);
+      events.push(same);
       return same;
     }
     const ev = { t: now, firstTimestamp: now, lastTimestamp: now, count: 1, ns, type, reason, object, message };
@@ -206,7 +212,9 @@ export function createEngine({ onMission = () => {} } = {}) {
     const seed = [...pod.metadata.name].reduce((s, ch) => s + ch.charCodeAt(0), 0);
     const base = 2 + (seed % 7);
     const wobble = 3 * Math.sin(now / 4000 + seed);
-    return Math.max(1, Math.round((base + wobble) * (pod.sim.load || 1)));
+    // clamp the idle reading BEFORE applying load, so the multiplier is always
+    // monotonic — clamping afterwards left a low-base pod pinned at 1m even at ×10
+    return Math.max(1, Math.round(base + wobble)) * (pod.sim.load || 1);
   }
 
   /** One rolling sample per tick — backs `kubectl top`, the sparklines and the SLO math. */

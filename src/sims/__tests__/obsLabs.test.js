@@ -108,6 +108,24 @@ describe('events', () => {
     expect(out.indexOf('Pod/loud')).toBeLessThan(out.indexOf('Pod/quiet'));
   });
 
+  it('keeps the loudest event visible once the table overflows', () => {
+    const { sim, runner } = boot();
+    const e = sim.engine;
+    // the storm starts first, so it sits at the head of the ring; 20 newer
+    // distinct events must not push it out of the window
+    const storm = { type: 'Warning', reason: 'BackOff', object: 'Pod/loud', message: 'crash' };
+    for (let i = 0; i < 50; i++) e.addEvent(storm);
+    for (let i = 0; i < 20; i++) e.addEvent({ type: 'Normal', reason: 'Pulled', object: 'Pod/q' + i, message: 'pulled ' + i });
+    // --sort-by ranks the whole list, not just the newest screenful
+    const sorted = runner.run('kubectl get events --sort-by=.count').text;
+    expect(sorted).toContain('Pod/loud');
+    expect(sorted.indexOf('Pod/loud')).toBeLessThan(sorted.indexOf('Pod/q'));
+    // and a storm that is still firing stays in the default (recency) view,
+    // because a repeat moves its row to the end of the ring
+    e.addEvent(storm);
+    expect(runner.run('kubectl get events').text).toContain('Pod/loud');
+  });
+
   it('--field-selector filters by type', () => {
     const { sim, runner } = boot();
     const e = sim.engine;

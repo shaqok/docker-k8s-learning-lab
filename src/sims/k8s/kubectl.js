@@ -485,15 +485,23 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       }
       onMission('events-filtered');
     }
+    // The 15-row cap is ours (real kubectl prints everything), so it must not
+    // decide what a sort ranks: with --sort-by we order the FULL list and keep
+    // the top of it, otherwise the count ranking would only ever rank the
+    // newest screenful and hide the very storm it was asked for.
+    // `engine.events` is kept ordered by lastTimestamp — a repeat moves to the
+    // end — so the default view's newest screenful is simply the tail.
     const sortBy = flags['sort-by'];
     if (typeof sortBy === 'string') {
       const key = sortBy.replace(/^\.?(metadata\.)?/, '');
-      if (/count/.test(key)) evs = [...evs].sort((a, b) => b.count - a.count);
-      else if (/firstTimestamp|creationTimestamp/.test(key)) evs = [...evs].sort((a, b) => a.firstTimestamp - b.firstTimestamp);
-      else evs = [...evs].sort((a, b) => a.lastTimestamp - b.lastTimestamp);
-      onMission('events-sorted:' + (/count/.test(key) ? 'count' : 'time'));
+      const byCount = /count/.test(key);
+      if (byCount) evs = [...evs].sort((a, b) => b.count - a.count).slice(0, 15);
+      else if (/firstTimestamp|creationTimestamp/.test(key)) evs = [...evs].sort((a, b) => a.firstTimestamp - b.firstTimestamp).slice(-15);
+      else evs = [...evs].sort((a, b) => a.lastTimestamp - b.lastTimestamp).slice(-15);
+      onMission('events-sorted:' + (byCount ? 'count' : 'time'));
+    } else {
+      evs = evs.slice(-15);
     }
-    evs = evs.slice(-15);
     if (!evs.length) return print(`No events found in ${opts.ns} namespace.`);
     print(pad('LAST SEEN', 11) + pad('TYPE', 9) + pad('REASON', 18) + pad('OBJECT', 30) + pad('COUNT', 7) + 'MESSAGE\n' +
       evs.map((e) => pad(fmtAge(e.lastTimestamp || e.t), 11) + pad(e.type, 9) + pad(e.reason, 18) + pad(esc(e.object), 30) + pad(e.count || 1, 7) + esc(e.message)).join('\n'));
