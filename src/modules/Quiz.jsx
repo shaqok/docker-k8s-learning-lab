@@ -5,7 +5,8 @@ import { useProgress } from '../context/ProgressContext.jsx';
 import { content } from '../content/index.js';
 import { QUIZ_BANK } from '../data/quiz.js';
 import { EXAMS, DOMAIN_LABELS } from '../data/examDomains.js';
-import { questionId, dueCards, deckStats } from '../data/leitner.js';
+import { dueCards, deckStats } from '../data/leitner.js';
+import { gradeAttempt, attemptScore } from '../data/quizScoring.js';
 import { docsForDomains } from '../data/docLinks.js';
 import DocLinks from '../components/DocLinks.jsx';
 
@@ -59,42 +60,16 @@ export default function Quiz() {
   };
   const retry = () => { setAnswers({}); setGraded(false); };
 
-  /**
-   * Two independent folds: per-domain accuracy (which the readiness dashboard
-   * reads) and per-question Leitner boxes (this module's review deck).
-   *
-   * A question feeds both at most once per session, and only if it was actually
-   * answered. Retry re-grades the same set, so without the guard you could
-   * answer correctly, retry, answer correctly again, and walk a card from box 1
-   * to retired in seconds — an interval is meant to be earned over days — while
-   * every retry re-inflated the domain counters too.
-   *
-   * Skipping a question is not the same as getting it wrong, so an unanswered
-   * question is left out entirely. That also stops "Grade me" with nothing
-   * selected from recording a wrong answer against every domain at once.
-   */
+  /** Fold the attempt into per-domain accuracy and the Leitner deck (see quizScoring.js). */
   const grade = () => {
-    const delta = {};
-    const cards = [];
-    questions.forEach((q, i) => {
-      if (answers[i] === undefined) return;
-      const qid = questionId(q);
-      if (scoredRef.current.has(qid)) return;
-      scoredRef.current.add(qid);
-
-      const right = answers[i] === q.c;
-      for (const id of q.d) {
-        if (!delta[id]) delta[id] = { r: 0, w: 0 };
-        delta[id][right ? 'r' : 'w']++;
-      }
-      cards.push({ id: qid, correct: right });
-    });
+    const { delta, cards, scored } = gradeAttempt(questions, answers, scoredRef.current);
+    scored.forEach((id) => scoredRef.current.add(id));
     if (Object.keys(delta).length) recordQuiz(delta);
     recordCards(cards);
     setGraded(true);
   };
 
-  const score = questions.reduce((s, q, i) => s + (answers[i] === q.c ? 1 : 0), 0);
+  const score = attemptScore(questions, answers);
   const missed = graded ? questions.map((q, i) => ({ q, i })).filter(({ q, i }) => answers[i] !== q.c) : [];
   const pct = questions.length ? Math.round((score / questions.length) * 100) : 0;
 
