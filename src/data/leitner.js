@@ -55,15 +55,32 @@ export function isDue(card, now = Date.now()) {
 }
 
 /**
- * The questions to review right now, hardest first (lowest box), so a short
- * session spends its time where the learner is actually weak.
+ * How many cards one sitting serves. On a fresh deck every question is "due",
+ * and a 96-question wall is not a review session — it's the whole quiz again,
+ * which is exactly what spaced repetition exists to avoid. Cards not served
+ * today stay due and come back tomorrow.
  */
-export function dueCards(bank, deck, now = Date.now()) {
+export const SESSION_LIMIT = 20;
+
+/**
+ * Review order: cards you have struggled with first (lowest box), then cards
+ * you have never seen.
+ *
+ * Unseen cards sort last rather than first, and that matters once the session
+ * is capped: a bank of ~100 mostly-unseen questions would otherwise starve the
+ * handful of lapsed cards you actually got wrong, which are the whole reason
+ * to open a review deck. New material fills whatever room is left.
+ *
+ * Pass limit = 0 for the full backlog (deckStats uses it to report the real count).
+ */
+export function dueCards(bank, deck, now = Date.now(), limit = SESSION_LIMIT) {
   const d = deck || {};
-  return bank
+  const rank = (card) => (card ? card.box : MAX_BOX + 1);
+  const due = bank
     .map((q) => ({ q, id: questionId(q), card: d[questionId(q)] }))
     .filter(({ card }) => isDue(card, now))
-    .sort((a, b) => ((a.card && a.card.box) || 0) - ((b.card && b.card.box) || 0));
+    .sort((a, b) => rank(a.card) - rank(b.card));
+  return limit > 0 ? due.slice(0, limit) : due;
 }
 
 /** Deck summary for the review pane: how many cards sit in each box. */
@@ -78,5 +95,6 @@ export function deckStats(bank, deck, now = Date.now()) {
     if (card.box >= MAX_BOX) retired++;
     else boxes[card.box - 1]++;
   }
-  return { boxes, retired, unseen, due: dueCards(bank, d, now).length, total: bank.length };
+  const due = dueCards(bank, d, now, 0).length; // the true backlog, not one sitting
+  return { boxes, retired, unseen, due, session: Math.min(due, SESSION_LIMIT), total: bank.length };
 }

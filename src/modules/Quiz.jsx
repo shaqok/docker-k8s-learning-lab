@@ -95,7 +95,10 @@ export default function Quiz() {
       {mode === 'review' && (
         <div className="card">
           <h4 style={{ marginTop: 0 }}>
-            🔁 {lang === 'ko' ? `오늘 복습할 카드 ${stats.due}장` : `${stats.due} card${stats.due === 1 ? '' : 's'} due today`}
+            🔁 {lang === 'ko'
+              ? `이번 세션 ${questions.length}장${stats.due > questions.length ? ` (밀린 카드 ${stats.due}장)` : ''}`
+              : `${questions.length} card${questions.length === 1 ? '' : 's'} this session`
+                + (stats.due > questions.length ? ` (${stats.due} due in total)` : '')}
           </h4>
           <p className="hint">
             {lang === 'ko'

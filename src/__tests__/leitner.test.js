@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { questionId, review, isDue, dueCards, deckStats, BOX_DAYS, MAX_BOX } from '../data/leitner.js';
+import { questionId, review, isDue, dueCards, deckStats, BOX_DAYS, MAX_BOX, SESSION_LIMIT } from '../data/leitner.js';
 import { QUIZ_BANK } from '../data/quiz.js';
 
 const DAY = 86400000;
@@ -88,6 +88,29 @@ describe('dueCards', () => {
     const deck = { [questionId(q('one'))]: review(undefined, true, T0) };
     const due = dueCards(bank, deck, T0);
     expect(due.map((c) => c.q.q.en)).toEqual(['two', 'three']);
+  });
+
+  it('caps a session so a fresh deck is not the whole quiz again', () => {
+    expect(dueCards(QUIZ_BANK, {}, T0)).toHaveLength(SESSION_LIMIT);
+    expect(QUIZ_BANK.length).toBeGreaterThan(SESSION_LIMIT); // the cap is doing work
+  });
+
+  it('reports the full backlog when the cap is lifted', () => {
+    expect(dueCards(QUIZ_BANK, {}, T0, 0)).toHaveLength(QUIZ_BANK.length);
+  });
+
+  it('does not let the session cap starve a lapsed card', () => {
+    // one lapsed card sitting past the cap, behind a wall of never-seen ones
+    const deck = {};
+    const weak = QUIZ_BANK[SESSION_LIMIT + 5];
+    deck[questionId(weak)] = { box: 1, due: 0 };
+    expect(dueCards(QUIZ_BANK, deck, T0)[0].q.q.en).toBe(weak.q.en);
+  });
+
+  it('ranks unseen cards after ones already in a box', () => {
+    const bank = [q('never-seen'), q('lapsed')];
+    const deck = { [questionId(q('lapsed'))]: { box: 2, due: 0 } };
+    expect(dueCards(bank, deck, T0).map((c) => c.q.q.en)).toEqual(['lapsed', 'never-seen']);
   });
 
   it('puts the weakest cards first', () => {
