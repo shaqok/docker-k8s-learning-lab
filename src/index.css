@@ -180,6 +180,12 @@ kbd{background:var(--panel2);border:1px solid var(--border);border-bottom-width:
 .rmitem .where{margin-left:auto;font-size:11px;color:var(--accent);white-space:nowrap;border:1px solid var(--border);border-radius:10px;padding:1px 8px;align-self:center}
 .rmitem .where:hover{border-color:var(--accent)}
 .rmitem .where.rw{color:var(--yellow)}
+/* practice link — reading topic → drill module */
+.practice-link{display:flex;gap:10px;align-items:center;margin:10px 0 18px;padding:8px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px}
+.practice-link:hover{border-color:var(--accent)}
+.practice-link .pl-go{color:var(--accent);font-weight:600;white-space:nowrap}
+.practice-link .pl-blurb{color:var(--muted);flex:1;min-width:0}
+.practice-link .pl-mod{color:var(--accent);font-size:11px;border:1px solid var(--border);border-radius:10px;padding:1px 8px;white-space:nowrap}
 pre.code{background:#010409;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;line-height:1.7;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#c9d1d9;margin:8px 0}
 pre.code .cm{color:#8b949e}pre.code .k{color:var(--accent)}pre.code .g{color:var(--green)}pre.code .hl{color:var(--nvidia)}
 /* CKAD drill labs (m11) */
