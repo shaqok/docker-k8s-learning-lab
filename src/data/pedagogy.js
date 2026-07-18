@@ -99,16 +99,24 @@ export function moduleStats(progress) {
  * `nextId` is the first unlocked, incomplete module; if everything left is
  * locked we still point at the first incomplete one, because a next step the
  * learner can act on beats no next step at all.
+ *
+ * Prerequisites outside the track are ignored. `requires` is a global teaching
+ * order, but a track is a self-contained path: CKAD includes Observability
+ * without Troubleshooting, so honouring the global requirement would show
+ * "do first: Troubleshooting" pointing at a module that is not on the path and
+ * can never be ticked off. A lock must always name something the learner can
+ * actually go and do.
  */
 export function trackState(trackId, progress) {
   const track = TRACKS[trackId];
   if (!track) return null;
   const stats = moduleStats(progress);
   const isComplete = (id) => !!(stats[id] && stats[id].complete);
+  const inTrack = new Set(track.modules);
 
   const modules = track.modules.map((id) => {
     const m = moduleById(id);
-    const missing = ((m && m.requires) || []).filter((r) => !isComplete(r));
+    const missing = ((m && m.requires) || []).filter((r) => inTrack.has(r) && !isComplete(r));
     return { id, complete: isComplete(id), locked: missing.length > 0, missing };
   });
 

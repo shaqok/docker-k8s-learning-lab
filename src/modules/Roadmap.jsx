@@ -3,13 +3,13 @@ import { useLang } from '../i18n/LanguageContext.jsx';
 import { useProgress } from '../context/ProgressContext.jsx';
 import { tr } from '../i18n/dynamic.js';
 import { content } from '../content/index.js';
-import { ROADMAP_EN, ROADMAP_KO, MODNAMES } from '../data/roadmap.js';
+import { ROADMAP_EN, ROADMAP_KO } from '../data/roadmap.js';
 import GoalPicker from '../components/GoalPicker.jsx';
 import { moduleById, moduleLabel } from '../data/modules.js';
 
-/** Roadmap items point at modules ('m4') or at the real world ('rw'). */
-const itemLabel = (mod, lang) =>
-  (moduleById(mod) ? moduleLabel(mod, lang) : MODNAMES[lang][mod]) || mod;
+/** Roadmap items point at a module ('m4') or at the world outside the app ('rw'). */
+const RW = { en: '🌍 real world', ko: '🌍 실전' };
+const itemLabel = (mod, lang) => (moduleById(mod) ? moduleLabel(mod, lang) : RW[lang]);
 
 const RM_TOTAL = ROADMAP_EN.reduce((s, st) => s + st.items.length, 0);
 

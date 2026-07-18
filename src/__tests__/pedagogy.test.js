@@ -3,6 +3,7 @@ import { MODULES, SECTIONS, moduleById, moduleLabel } from '../data/modules.js';
 import { TRACKS, TRACK_IDS, HUB_MODULE } from '../data/tracks.js';
 import { moduleStats, trackState, visibleModules } from '../data/pedagogy.js';
 import { MODULE_SLUGS } from '../router.js';
+import { COMPONENTS } from '../App.jsx';
 
 /** Progress state with nothing done — the shape ProgressContext hands out. */
 const emptyProgress = () => ({
@@ -58,6 +59,12 @@ describe('module registry', () => {
     for (const m of MODULES) expect(MODULE_SLUGS[m.id]).toBe(m.slug);
   });
 
+  it('has a component for every module, and no orphan components', () => {
+    // App.jsx renders <C/> per registry entry; a missing one crashes the app
+    expect(Object.keys(COMPONENTS).sort()).toEqual(MODULES.map((m) => m.id).sort());
+    for (const id of Object.keys(COMPONENTS)) expect(COMPONENTS[id]).toBeTruthy();
+  });
+
   it('only requires modules that exist, and never itself', () => {
     for (const m of MODULES) {
       for (const r of m.requires) {
@@ -96,6 +103,20 @@ describe('tracks', () => {
       for (const m of t.modules) {
         expect(moduleById(m), `track ${id} references unknown ${m}`).toBeTruthy();
         expect(m).not.toBe(HUB_MODULE);
+      }
+    }
+  });
+
+  it('never shows a lock the learner cannot clear from inside the track', () => {
+    // a "do first: X" that names a module not on your path can never be
+    // satisfied — trackState must ignore prerequisites outside the track
+    for (const id of TRACK_IDS) {
+      const st = trackState(id, emptyProgress());
+      const inTrack = new Set(TRACKS[id].modules);
+      for (const m of st.modules) {
+        for (const r of m.missing) {
+          expect(inTrack.has(r), `${id}: ${m.id} blames ${r}, which is not in the track`).toBe(true);
+        }
       }
     }
   });
@@ -147,6 +168,13 @@ describe('moduleStats', () => {
 describe('trackState', () => {
   it('returns null for an unknown track', () => {
     expect(trackState('nope', emptyProgress())).toBe(null);
+  });
+
+  it('ignores prerequisites that are not part of the track', () => {
+    // CKAD includes Observability (m21) but not Troubleshooting (m10), which
+    // m21 globally requires — so within CKAD it must not be blamed on m10
+    const st = trackState('ckad', emptyProgress());
+    expect(st.modules.find((m) => m.id === 'm21').missing).not.toContain('m10');
   });
 
   it('locks a module whose prerequisites are unmet and names them', () => {

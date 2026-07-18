@@ -32,7 +32,7 @@ import MockExam from './modules/MockExam.jsx';
  * prerequisites) lives in data/modules.js; only this map stays here, because a
  * data file can't import JSX components without pulling React into the data layer.
  */
-const COMPONENTS = {
+export const COMPONENTS = {
   m0: Roadmap,
   m1: Containers101,
   m2: DockerLab,

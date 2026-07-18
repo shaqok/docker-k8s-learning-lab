@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Rich from '../components/Rich.jsx';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { useProgress } from '../context/ProgressContext.jsx';
@@ -35,6 +35,8 @@ export default function Quiz() {
    */
   const [sessionAt, setSessionAt] = useState(() => Date.now());
   const [deckAtOpen, setDeckAtOpen] = useState(quizDeck);
+  /** Question ids already folded into the deck this session — see grade(). */
+  const scoredRef = useRef(new Set());
   const stats = useMemo(() => deckStats(QUIZ_BANK, quizDeck, Date.now()), [quizDeck]);
 
   const questions = useMemo(() => {
@@ -44,12 +46,16 @@ export default function Quiz() {
     return QUIZ_BANK.filter((q) => q.d.some((id) => ids.has(id)));
   }, [mode, filter, domain, deckAtOpen, sessionAt]);
 
-  const setFocus = (f, d) => { setFilter(f); setDomain(d); setAnswers({}); setGraded(false); };
+  const setFocus = (f, d) => {
+    setFilter(f); setDomain(d); setAnswers({}); setGraded(false);
+    scoredRef.current = new Set();
+  };
   const setModeAndReset = (m) => {
     if (m === 'review') { setSessionAt(Date.now()); setDeckAtOpen(quizDeck); }
     setMode(m);
     setAnswers({});
     setGraded(false);
+    scoredRef.current = new Set();
   };
   const retry = () => { setAnswers({}); setGraded(false); };
 
@@ -64,7 +70,15 @@ export default function Quiz() {
         if (!delta[id]) delta[id] = { r: 0, w: 0 };
         delta[id][right ? 'r' : 'w']++;
       }
-      if (answers[i] !== undefined) cards.push({ id: questionId(q), correct: right });
+      // A card counts once per session. Retry re-grades the same frozen set, so
+      // without this you could answer correctly, retry, answer correctly again
+      // and walk a card from box 1 to retired in a few seconds — the interval
+      // is meant to be earned over days, not clicks.
+      const qid = questionId(q);
+      if (answers[i] !== undefined && !scoredRef.current.has(qid)) {
+        scoredRef.current.add(qid);
+        cards.push({ id: qid, correct: right });
+      }
     });
     recordQuiz(delta);
     recordCards(cards);
