@@ -24,6 +24,7 @@ export const MODULE_SLUGS = {
   m18: 'storage-labs',
   m19: 'packaging-gitops',
   m20: 'security-drills',
+  m21: 'observability',
   m15: 'exam-room',
   m6: 'quiz',
 };

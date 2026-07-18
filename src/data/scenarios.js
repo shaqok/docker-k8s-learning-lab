@@ -9,8 +9,12 @@ import { imageKnown } from '../sims/k8s/engine.js';
  * scenario is solvable.
  */
 
-/** Seed n pods for a deployment, already scheduled; override to break them. */
-function seedPods(engine, dep, n, override = null) {
+/**
+ * Seed n pods for a deployment, already scheduled; override to break them.
+ * Exported because the drill labs need the same trick — a pod that exists
+ * before the RS controller runs is the only way to inject a per-pod fault.
+ */
+export function seedPods(engine, dep, n, override = null) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const c = dep.spec.template.spec.containers[0];

@@ -16,7 +16,25 @@ Run a single test file:
 npx vitest run src/sims/__tests__/scenarios.test.js
 ```
 
-## Architecture
+## Git & Workflow Conventions
+
+### Branching Strategy
+- Base branch: `main` or `develop`
+- Feature branches: `feature/short-description`
+- Bug fixes: `bugfix/issue-number`
+
+### Commit Guidelines
+- Follow Conventional Commits format (e.g., `feat(auth): add JWT validation`).
+- Keep commits highly atomic. Commit after every single isolated, working change.
+- Never use `git commit --amend` if a pre-commit hook fails; always create a new commit instead.
+
+### Pull Requests
+- Use the GitHub CLI integration to draft PRs.
+- Always include an overview, explicit file changes, and testing notes in the PR description.
+
+## Project
+
+### Architecture
 
 This is a bilingual (EN/KO) CKA/CKAD exam-trainer built with Vite + React. The core value is in the pure-logic simulators, not the UI.
 
@@ -70,6 +88,14 @@ Same lab shape, via the shared `LabRunner`. Three labs: **NetworkPolicy** (allow
 
 Same lab shape, via the shared `LabRunner`. Three labs: **drain vs PDB** (PodDisruptionBudget objects in the store; engine `pdbStatus(pdb)` / `evictionBlockedBy(pod)` drive both the live panel and a `kubectl drain` that refuses budget-violating evictions with the real error, firing `drain-blocked` / `drained:NODE` flags; `kubectl get/describe pdb` + imperative `create poddisruptionbudget --selector --min-available`), **kubeadm upgrade** (nodes carry `sim.version` shown by `kubectl get nodes`; the ordering — control plane before `kubeadm upgrade node`, new kubeadm package before `apply` — is enforced with real error messages; restarting the kubelet on a cordoned node fires `kubelet-cordoned:NODE`), and **etcd & certs** (`etcdctl snapshot save` demands the exam TLS flags; `etcdutl snapshot restore --data-dir` calls engine `restoreStore()` — a full deep-copy rollback; `kubeadm certs check-expiration` / `openssl x509 -dates` fire `cert-inspect`). The host-command layer lives in `@src/sims/k8s/hostops.js` (`createHostOps(engine)`, exposed as `sim.host`): `ssh NODE`/`exit` gate `kubeadm`/`apt-get`/`systemctl`/`etcdctl`/`etcdutl`/`openssl`, with per-node package state in `sim.host.state`. Engine `remove()` is identity-checked so stale Terminating timers can't delete restored objects.
 
+### Observability & incident drills (`@src/data/obsLabs.js` + `@src/modules/ObsLabs.jsx`, module m21)
+
+The observability model lives in the engine, not the CLI. **Logs**: `pod.sim.logs[container]` is a ring of `{t, msg}` written by the reconcile loop itself (startup banner from `K8S_IMAGES[].logs`, an access-log heartbeat every `HEARTBEAT_MS`, probe-failure warnings, OOM kills, crash last-words from `pod.sim.crashLog`); on restart `rotateLog()` moves it to `pod.sim.prevLogs`, which is the *only* source `logs --previous` reads. Pods born already-running (scenario/lab seeds) get their banner from `makePod`, since they skip `startMainPhase`. **Events**: `addEvent` aggregates on `(object, reason, message)` — one row with `count`/`firstTimestamp`/`lastTimestamp`. **Metrics**: `pod.sim.metrics` is a ring of `{t, cpuM, memMi, ready}` sampled per tick by `tickPod` (which therefore always reports `changed`, so panels re-render); `engine.setLoad(pod, factor)` is the CPU fault knob. `@src/sims/k8s/slo.js` (pure) folds the rings into `sloOf() → {availability, budgetBurn, meeting}`.
+
+kubectl side: `logs` takes `--tail/--since/--timestamps/--previous/-c/-f` (**`-f` parses as `--follow` only when the verb is `logs`**, since `-f` is `--filename` everywhere else — handled in `parseTokens`), `get events` has a COUNT column plus `--sort-by`/`--field-selector`, `describe` renders repeats as `(xN over …)`, `top` reads the ring and takes `--sort-by=cpu|memory`.
+
+Three labs via `LabRunner` (logs, events, metrics/SLO — the last starts healthy, with panel buttons injecting a CPU spike that burns no error budget and a broken replica that burns all of it). **Incident mode** (`@src/data/incidents.js`, pure): `pickIncident()` pages a random `SCENARIOS` entry with an `INCIDENT_INFO[id].page` symptom only; `causeChoices()` builds the root-cause options out of *other* incidents' causes, so every distractor is a real failure mode; `gradeIncident()` runs the scenario's own `checks` and returns time-to-diagnose, time-to-resolve and an MTTR band — awarded only when the cause was named *and* the fix landed. Progress: `localStorage: dk8sobs` (missions) / `dk8sincident` (resolved incidents).
+
 ### Certify layer: Exam Room (`@src/modules/MockExam.jsx`, module m15) + quiz v2
 
 `@src/data/examDomains.js` — the official CKA/CKAD blueprint domains and weights (flat domain ids like `arch`, `net`, `observe`; shared by quiz tags, exam tasks and the dashboard). `@src/data/examTasks.js` — two mock sets (15 weighted tasks each), task shape = scenario shape + `{ domain, weight }`; checks get `(engine, sim)` (sim for host-level state like etcd snapshots); CKA reuses five Troubleshooting-Gym scenarios via `fromScenario()`; `gradeTask`/`gradeExam` compute fractional per-check credit, score % over total weight, 66% pass line, per-domain earned/total. The runner gives every task its own sim (created lazily, all kept mounted), a 2h countdown, flag-for-later, and ONE grading at the end — no Check button, like the real exam. Results persist via `ProgressContext.recordExamResult` (`localStorage: dk8sexam`).
@@ -88,6 +114,8 @@ Same lab shape, via the shared `LabRunner`. Three labs: **drain vs PDB** (PodDis
 - `netLabs.test.js` — NetworkPolicy evaluation (deny/allow/egress/namespaceSelector), Ingress + Gateway routing via kubectl and `curl`, and proves every networking lab mission solvable.
 - `opsLabs.test.js` — PDB accounting + PDB-aware drain, ssh/kubeadm upgrade ordering, etcd snapshot/restore round-trips (incl. the stale-timer guard), cert inspection, and proves every cluster-ops lab mission solvable.
 - `examTasks.test.js` — proves every mock-exam task starts unsolved and is solvable by its `solve()`; validates set metadata (domains, weights, bilingual text), `gradeExam` math (partial credit, pass line, per-domain totals), quiz-bank integrity (tags, EN/KO parity, per-domain coverage), and the readiness fold.
+- `obsLabs.test.js` — per-pod log accumulation, `--tail/--since/--timestamps/-f/--previous`, event count aggregation, `--sort-by`/`--field-selector`, the metrics ring + `top --sort-by`, SLO math, and proves every observability lab mission solvable (its runner grades after every tick, not once at the end — an SLO breach is a transient state).
+- `incidents.test.js` — incident pool integrity (bilingual page/cause per scenario, no page that gives the diagnosis away), non-repeating picks, distractor construction, and MTTR/band grading.
 - `src/__tests__/router.test.js` — hash-route parsing/building (slugs, raw ids, sub-paths, junk fallback).
 
 ### React structure

@@ -86,6 +86,11 @@ export const KO_STR=[
  ["🏆 — go break a real cluster (kind or minikube) next!","🏆 — 이제 진짜 클러스터(kind/minikube)를 부수러 가세요!"],
  ["👏 solid — reread the ones you missed.","👏 탄탄합니다 — 틀린 문제만 다시 읽어보세요."],
  ["— revisit modules 1–5 and try again.","— 모듈들을 복습하고 다시 도전하세요."],
+ /* observability (m21) — logs / events / top teaching notes */
+ ["That is the PREVIOUS instance's log — the one before the restart that bumped RESTARTS. Its last lines are why it died.","방금 본 건 '이전' 인스턴스의 로그입니다 — RESTARTS를 올린 재시작 직전의 인스턴스요. 마지막 줄들이 죽은 이유입니다."],
+ ["-f streams until you Ctrl-C. In this sim the stream is a snapshot — run it again to see new lines.","-f는 Ctrl-C까지 스트리밍합니다. 이 시뮬레이터에서는 스냅샷이니, 새 줄을 보려면 다시 실행하세요."],
+ ["(no logs matched)","(조건에 맞는 로그 없음)"],
+ ["(no logs)","(로그 없음)"],
  /* k8s lab v2 — teaching notes */
  ["Troubleshooting flow: kubectl describe pod NAME (read Events) → kubectl logs NAME. ImagePullBackOff = bad image name/tag; CrashLoopBackOff = the process inside keeps dying.","트러블슈팅 순서: kubectl describe pod 이름 (Events 읽기) → kubectl logs 이름. ImagePullBackOff = 이미지 이름/태그 오류; CrashLoopBackOff = 안의 프로세스가 계속 죽는 중."],
  [/Heads up: the registry doesn't know "(.+?)" — the Deployment is accepted anyway \(the API server doesn't check images\)\. The kubelet will fail to pull it\. Watch for ImagePullBackOff\./g,"참고: 레지스트리에 \"$1\" 이미지는 없습니다 — 그래도 Deployment는 받아들여집니다(API 서버는 이미지를 검사하지 않아요). kubelet이 pull에 실패할 겁니다. ImagePullBackOff를 지켜보세요."],

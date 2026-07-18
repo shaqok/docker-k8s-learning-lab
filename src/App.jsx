@@ -21,6 +21,7 @@ import PodLabs from './modules/PodLabs.jsx';
 import StorageLabs from './modules/StorageLabs.jsx';
 import PackagingLabs from './modules/PackagingLabs.jsx';
 import SecurityLabs from './modules/SecurityLabs.jsx';
+import ObsLabs from './modules/ObsLabs.jsx';
 import MockExam from './modules/MockExam.jsx';
 
 const MODULES = [
@@ -43,6 +44,7 @@ const MODULES = [
   { id: 'm18', C: StorageLabs },
   { id: 'm19', C: PackagingLabs },
   { id: 'm20', C: SecurityLabs },
+  { id: 'm21', C: ObsLabs },
   { id: 'm15', C: MockExam },
   { id: 'm6', C: Quiz },
 ];

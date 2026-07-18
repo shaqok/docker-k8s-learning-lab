@@ -43,6 +43,12 @@ export function ProgressProvider({ children }) {
   const [securityDone, setSecurityDone] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dk8ssec') || '{}'); } catch { return {}; }
   });
+  const [obsDone, setObsDone] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dk8sobs') || '{}'); } catch { return {}; }
+  });
+  const [incidentResults, setIncidentResults] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dk8sincident') || '[]'); } catch { return []; }
+  });
   const [quizStats, setQuizStats] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dk8squiz') || '{}'); } catch { return {}; }
   });
@@ -160,6 +166,29 @@ export function ProgressProvider({ children }) {
     });
   }, []);
 
+  const completeObsMission = useCallback((labId, missionId) => {
+    setObsDone((prev) => {
+      const cur = prev[labId] || [];
+      if (cur.includes(missionId)) return prev;
+      const next = { ...prev, [labId]: [...cur, missionId] };
+      try { localStorage.setItem('dk8sobs', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  /**
+   * One resolved incident: id, the two clocks, whether the root cause was named.
+   * `band` is dropped — it is derivable from timeToResolve, and storing it would
+   * pin old attempts to whatever the thresholds were on the day they ran.
+   */
+  const recordIncident = useCallback(({ band, ...res }) => {
+    setIncidentResults((prev) => {
+      const next = [...prev, { ...res, at: Date.now() }];
+      try { localStorage.setItem('dk8sincident', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   /** Clear one drill lab's completed missions so it can be re-attempted from scratch. */
   const makeReset = (setter, storageKey) => (labId) => {
     setter((prev) => {
@@ -178,6 +207,7 @@ export function ProgressProvider({ children }) {
   const resetStorageLab = useCallback(makeReset(setStorageDone, 'dk8sstorage'), []);
   const resetPackagingLab = useCallback(makeReset(setPackagingDone, 'dk8spkg'), []);
   const resetSecurityLab = useCallback(makeReset(setSecurityDone, 'dk8ssec'), []);
+  const resetObsLab = useCallback(makeReset(setObsDone, 'dk8sobs'), []);
 
   /** Fold one quiz attempt's per-domain {r,w} deltas into the running totals. */
   const recordQuiz = useCallback((delta) => {
@@ -209,7 +239,7 @@ export function ProgressProvider({ children }) {
   }, []);
 
   return (
-    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, securityDone, completeSecurityMission, resetSecurityLab, quizStats, recordQuiz, examResults, recordExamResult }}>
+    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, securityDone, completeSecurityMission, resetSecurityLab, obsDone, completeObsMission, resetObsLab, incidentResults, recordIncident, quizStats, recordQuiz, examResults, recordExamResult }}>
       {children}
     </ProgressContext.Provider>
   );

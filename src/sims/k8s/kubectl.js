@@ -12,7 +12,15 @@ import { buildKustomization } from './kustomize.js';
 /* ---------- CLI parsing ---------- */
 
 const ALIAS = { '-n': 'namespace', '--namespace': 'namespace', '-l': 'selector', '--selector': 'selector', '-o': 'output', '--output': 'output', '-f': 'filename', '--filename': 'filename', '-k': 'kustomize', '--kustomize': 'kustomize', '-A': 'all-namespaces', '--all-namespaces': 'all-namespaces', '-c': 'container', '--container': 'container' };
-const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '-k', '--kustomize', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H', '-c', '--container', '--schedule', '--completions', '--parallelism', '--from']);
+const VALUE_FLAGS = new Set(['-n', '--namespace', '-l', '--selector', '-o', '--output', '-f', '--filename', '-k', '--kustomize', '--image', '--replicas', '--port', '--target-port', '--name', '--labels', '--to-revision', '--from-literal', '--grace-period', '--verb', '--resource', '--role', '--clusterrole', '--serviceaccount', '--user', '--group', '--as', '--rule', '--class', '--min-available', '--max-unavailable', '-H', '-c', '--container', '--schedule', '--completions', '--parallelism', '--from', '--tail', '--since', '--sort-by', '--field-selector']);
+
+/** "30s" | "5m" | "2h" → ms (null when unset/unparsable). */
+export function parseDuration(s) {
+  if (s == null || s === true) return null;
+  const m = String(s).match(/^(\d+(?:\.\d+)?)(s|m|h)$/);
+  if (!m) return null;
+  return parseFloat(m[1]) * { s: 1e3, m: 60e3, h: 3600e3 }[m[2]];
+}
 
 /**
  * Quote-aware split so a quoted cron schedule survives as one token — embedded
@@ -38,13 +46,19 @@ function splitQuoted(s) {
   return out;
 }
 
+/**
+ * `-f` is `--filename` everywhere except `kubectl logs`, where it's the boolean
+ * `--follow` — so the verb decides whether it swallows the next token.
+ */
 function parseTokens(tokens) {
   const args = [];
   const flags = {};
+  const isLogs = tokens[0] === 'logs';
   let rest = null;
   for (let i = 0; i < tokens.length; i++) {
     const a = tokens[i];
     if (a === '--') { rest = tokens.slice(i + 1); break; }
+    if (isLogs && (a === '-f' || a === '--follow')) { flags.follow = true; continue; }
     if (a.startsWith('-') && a !== '-') {
       let k = a, v = true;
       const eq = a.indexOf('=');
@@ -454,14 +468,47 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     onMission('pdb');
   }
 
-  function getEvents(print, opts) {
-    const evs = engine.events.filter((e) => opts.all || e.ns === opts.ns).slice(-15);
+  /**
+   * `kubectl get events` with the two things that make an event storm readable:
+   * a COUNT column (repeats aggregate into one row) and --sort-by, because the
+   * default order is emphatically not chronological in real clusters either.
+   */
+  function getEvents(print, opts, flags = {}) {
+    let evs = engine.events.filter((e) => opts.all || e.ns === opts.ns);
+    const fieldSel = flags['field-selector'];
+    if (typeof fieldSel === 'string') {
+      for (const term of fieldSel.split(',')) {
+        const [k, v] = term.split('=');
+        if (k === 'type') evs = evs.filter((e) => e.type === v);
+        if (k === 'reason') evs = evs.filter((e) => e.reason === v);
+        if (k === 'involvedObject.name') evs = evs.filter((e) => e.object.split('/').pop() === v);
+      }
+      onMission('events-filtered');
+    }
+    // The 15-row cap is ours (real kubectl prints everything), so it must not
+    // decide what a sort ranks: with --sort-by we order the FULL list and keep
+    // the top of it, otherwise the count ranking would only ever rank the
+    // newest screenful and hide the very storm it was asked for.
+    // `engine.events` is kept ordered by lastTimestamp — a repeat moves to the
+    // end — so the default view's newest screenful is simply the tail.
+    const sortBy = flags['sort-by'];
+    if (typeof sortBy === 'string') {
+      const key = sortBy.replace(/^\.?(metadata\.)?/, '');
+      const byCount = /count/.test(key);
+      if (byCount) evs = [...evs].sort((a, b) => b.count - a.count).slice(0, 15);
+      else if (/firstTimestamp|creationTimestamp/.test(key)) evs = [...evs].sort((a, b) => a.firstTimestamp - b.firstTimestamp).slice(-15);
+      else evs = [...evs].sort((a, b) => a.lastTimestamp - b.lastTimestamp).slice(-15);
+      onMission('events-sorted:' + (byCount ? 'count' : 'time'));
+    } else {
+      evs = evs.slice(-15);
+    }
     if (!evs.length) return print(`No events found in ${opts.ns} namespace.`);
-    print(pad('LAST SEEN', 11) + pad('TYPE', 9) + pad('REASON', 18) + pad('OBJECT', 34) + 'MESSAGE\n' +
-      evs.map((e) => pad(fmtAge(e.t), 11) + pad(e.type, 9) + pad(e.reason, 18) + pad(esc(e.object), 34) + esc(e.message)).join('\n'));
+    print(pad('LAST SEEN', 11) + pad('TYPE', 9) + pad('REASON', 18) + pad('OBJECT', 30) + pad('COUNT', 7) + 'MESSAGE\n' +
+      evs.map((e) => pad(fmtAge(e.lastTimestamp || e.t), 11) + pad(e.type, 9) + pad(e.reason, 18) + pad(esc(e.object), 30) + pad(e.count || 1, 7) + esc(e.message)).join('\n'));
+    onMission('events');
   }
 
-  function getGeneric(kind, print, opts) {
+  function getGeneric(kind, print, opts, flags = {}) {
     const objs = listFor(kind, opts);
     if (!objs.length) return print(kind === 'Namespace' ? '' : `No resources found in ${opts.ns} namespace.`);
     if (kind === 'Namespace') return print(pad('NAME', 16) + pad('STATUS', 9) + 'AGE\n' + objs.map((o) => pad(o.metadata.name, 16) + pad('Active', 9) + age(o)).join('\n'));
@@ -541,7 +588,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (kind === 'Service') return getServices(print, opts);
     if (kind === 'Endpoints') return getEndpoints(print, opts);
     if (kind === 'Node') return getNodes(print, opts);
-    if (kind === 'Event') return getEvents(print, opts);
+    if (kind === 'Event') return getEvents(print, opts, flags);
     if (kind === 'PodDisruptionBudget') return getPdbs(print, opts);
     if (WORKLOAD_KINDS[kind]) {
       const def = WORKLOAD_KINDS[kind];
@@ -549,7 +596,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       if (!objs.length) return print(`No resources found in ${opts.ns} namespace.`);
       return print(def.getHeader() + '\n' + objs.map((o) => def.getRow(engine, o)).join('\n'));
     }
-    return getGeneric(kind, print, opts);
+    return getGeneric(kind, print, opts, flags);
   }
 
   /* ----- describe ----- */
@@ -557,8 +604,12 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
   function eventsBlock(objRef) {
     const evs = engine.events.filter((e) => e.object === objRef).slice(-6);
     if (!evs.length) return 'Events:          <none>';
-    return 'Events:\n  ' + pad('Type', 9) + pad('Reason', 18) + pad('Age', 6) + 'Message\n  ' + pad('----', 9) + pad('------', 18) + pad('---', 6) + '-------\n' +
-      evs.map((e) => '  ' + pad(e.type, 9) + pad(e.reason, 18) + pad(fmtAge(e.t), 6) + esc(e.message)).join('\n');
+    return 'Events:\n  ' + pad('Type', 9) + pad('Reason', 18) + pad('Age', 18) + 'Message\n  ' + pad('----', 9) + pad('------', 18) + pad('---', 18) + '-------\n' +
+      evs.map((e) => '  ' + pad(e.type, 9) + pad(e.reason, 18) +
+        // real describe collapses repeats as "2m (x47 over 6m)" — the (xN) is the
+        // single most useful number on a flapping pod
+        pad((e.count || 1) > 1 ? `${fmtAge(e.lastTimestamp)} (x${e.count} over ${fmtAge(e.firstTimestamp)})` : fmtAge(e.t), 18) +
+        esc(e.message)).join('\n');
   }
 
   function cmdDescribe(print, args, flags) {
@@ -1488,8 +1539,11 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     }
     const cs = (p.status.containerStatuses || []).find((s) => s.name === c.name);
     if (flags.previous) {
-      if (!cs || !cs.restartCount) return print(`Error from server (BadRequest): previous terminated container "${c.name}" in pod "${p.metadata.name}" not found`, 'err');
-      print(esc(['exec: process exited with code 1', "(this is the PREVIOUS instance's log — the one before the restart that bumped Restart Count)"].join('\n')));
+      const prev = (p.sim.prevLogs || {})[c.name];
+      if (!cs || !cs.restartCount || !prev || !prev.length)
+        return print(`Error from server (BadRequest): previous terminated container "${c.name}" in pod "${p.metadata.name}" not found`, 'err');
+      printLogLines(print, prev, flags);
+      print("<span class='info'>That is the PREVIOUS instance's log — the one before the restart that bumped RESTARTS. Its last lines are why it died.</span>");
       onMission('logs-previous');
       return;
     }
@@ -1497,13 +1551,42 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: trying and failing to pull image`, 'err');
     if (p.status.state === 'Pending' || p.status.state === 'ContainerCreating' || (p.status.state || '').startsWith('Init:'))
       return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: ContainerCreating`, 'err');
-    if ((cs && cs.state === 'CrashLoopBackOff') || (containers.length <= 1 && p.sim.crash)) {
-      print(esc((p.sim.crashLog || ['exec: process exited with code 1', '(the container\'s main process keeps dying — that\'s what CrashLoopBackOff means)']).join('\n')));
-      return;
-    }
-    const info = K8S_IMAGES[imageRepo(c.image)];
-    print(esc((info && info.logs.length ? info.logs : ['(no logs)']).join('\n')));
+    // fire the "you ran it" flags on any successful read, before the empty-buffer
+    // shortcuts below can return early
     if (flags.container && containers.length > 1) onMission('logs-c');
+    onMission('logs');
+    const lines = (p.sim.logs || {})[c.name] || [];
+    if (!lines.length) {
+      // a crashing container may not have written its buffer yet
+      if ((cs && cs.state === 'CrashLoopBackOff') || (containers.length <= 1 && p.sim.crash))
+        return print(esc((p.sim.crashLog || ['exec: process exited with code 1']).join('\n')));
+      // mid-restart (the buffer has rotated, the new instance has not started):
+      // real kubectl says the container is not up yet rather than serving silence
+      if ((cs && cs.state === 'OOMKilled') || p.status.state === 'OOMKilled')
+        return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: restarting`, 'err');
+      return print(esc('(no logs)'));
+    }
+    printLogLines(print, lines, flags);
+    if (flags.follow) print("<span class='info'>-f streams until you Ctrl-C. In this sim the stream is a snapshot — run it again to see new lines.</span>");
+  }
+
+  /** Shared by `logs` and `logs --previous`: applies --since, --tail, --timestamps. */
+  function printLogLines(print, lines, flags) {
+    let out = lines;
+    const since = parseDuration(flags.since);
+    if (since != null) {
+      const cutoff = Date.now() - since;
+      out = out.filter((l) => l.t >= cutoff);
+      onMission('logs-since');
+    }
+    const tail = flags.tail != null ? Number(flags.tail) : null;
+    if (tail != null && tail >= 0) {
+      out = out.slice(-tail);
+      onMission('logs-tail');
+    }
+    if (!out.length) return print(esc('(no logs matched)'));
+    if (flags.timestamps) onMission('logs-timestamps');
+    print(esc(out.map((l) => (flags.timestamps ? new Date(l.t).toISOString() + ' ' : '') + l.msg).join('\n')));
   }
 
   function cmdExec(print, args, flags, rest) {
@@ -1617,7 +1700,11 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     print("(simulated) executed '" + esc(cmd) + "' inside " + esc(p.metadata.name));
   }
 
-  const fakeCpuM = (p) => 2 + ([...p.metadata.name].reduce((s, ch) => s + ch.charCodeAt(0), 0) % 7);
+  /** Latest metrics sample, falling back to a live reading for a just-started pod. */
+  const latestCpuM = (p) => {
+    const ring = p.sim.metrics || [];
+    return ring.length ? ring[ring.length - 1].cpuM : engine.cpuOf(p);
+  };
 
   function cmdTop(print, args, flags) {
     const what = (args[1] || '').toLowerCase();
@@ -1628,7 +1715,7 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
           const sys = n.sim.role === 'control-plane' ? { cpuM: 250, memMi: 700 } : { cpuM: 60, memMi: 300 };
           let cpuM = sys.cpuM, memMi = sys.memMi;
           for (const p of engine.list('Pod', { all: true }))
-            if (p.spec.nodeName === n.metadata.name && !p.sim.system && p.status.state !== 'Terminating') { cpuM += fakeCpuM(p); memMi += p.sim.memMi || 0; }
+            if (p.spec.nodeName === n.metadata.name && !p.sim.system && p.status.state !== 'Terminating') { cpuM += latestCpuM(p); memMi += p.sim.memMi || 0; }
           return pad(n.metadata.name, 16) + pad(cpuM + 'm', 12) + pad(Math.round((cpuM / K8S_NODE_ALLOC.cpuM) * 100) + '%', 7) + pad(Math.round(memMi) + 'Mi', 15) + Math.round((memMi / K8S_NODE_ALLOC.memMi) * 100) + '%';
         }).join('\n'));
       return;
@@ -1636,9 +1723,17 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     if (what === 'pod' || what === 'pods' || what === 'po') {
       const pods = engine.list('Pod', opts).filter((p) => !p.sim.system && (p.status.state === 'Running' || p.status.state === 'OOMKilled'));
       if (!pods.length) return print(`No resources found in ${opts.ns} namespace.`);
+      // real `top` sorts by name; --sort-by=cpu|memory puts the hog on top,
+      // which is how you find it during an incident
+      const sortBy = String(flags['sort-by'] || '').replace(/^\./, '');
+      const sorted = [...pods].sort((a, b) => {
+        if (sortBy === 'cpu') return latestCpuM(b) - latestCpuM(a);
+        if (sortBy === 'memory') return (b.sim.memMi || 0) - (a.sim.memMi || 0);
+        return a.metadata.name.localeCompare(b.metadata.name);
+      });
+      if (sortBy === 'cpu' || sortBy === 'memory') onMission('top-sorted:' + sortBy);
       print(pad('NAME', 34) + pad('CPU(cores)', 12) + 'MEMORY(bytes)\n' +
-        pods.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
-          .map((p) => pad(p.metadata.name, 34) + pad(fakeCpuM(p) + 'm', 12) + Math.round(p.sim.memMi || 0) + 'Mi').join('\n'));
+        sorted.map((p) => pad(p.metadata.name, 34) + pad(latestCpuM(p) + 'm', 12) + Math.round(p.sim.memMi || 0) + 'Mi').join('\n'));
       onMission('top');
       return;
     }
@@ -1790,8 +1885,10 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
     'kubectl run NAME --image=IMG [-- CMD]        kubectl create deployment NAME --image=IMG [--replicas=N]\n' +
     'kubectl create namespace|configmap|secret …  kubectl apply -f FILE.yaml   (files live in the Manifests editor)\n' +
     'kubectl scale deployment NAME --replicas=N   kubectl delete pod|deploy|svc|ns NAME [-l k=v] [-f FILE]\n' +
-    'kubectl describe pod|deploy|svc|node NAME    kubectl logs POD             kubectl exec POD -- CMD\n' +
-    'kubectl top pods|nodes                       (usage vs requests/limits — watch a leak head for its OOMKill)\n' +
+    'kubectl describe pod|deploy|svc|node NAME    kubectl exec POD -- CMD\n' +
+    'kubectl logs POD [-c C] [--previous] [--tail=N] [--since=5m] [--timestamps] [-f]\n' +
+    'kubectl get events [--sort-by=.lastTimestamp|.count] [--field-selector type=Warning]   (COUNT aggregates repeats)\n' +
+    'kubectl top pods|nodes [--sort-by=cpu|memory]  (usage vs requests/limits — watch a leak head for its OOMKill)\n' +
     'kubectl expose deployment NAME --port=N      kubectl set image deployment/NAME C=IMG\n' +
     'kubectl rollout status|history|undo deployment/NAME [--to-revision=N]\n' +
     'kubectl label pod NAME k=v|k- [--overwrite]  kubectl cordon|uncordon|drain NODE   kubectl taint nodes NODE k=v:NoSchedule\n' +
