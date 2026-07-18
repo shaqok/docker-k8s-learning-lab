@@ -170,6 +170,18 @@ export const KO_STR=[
  ["⚡ auto-sync: the agent noticed the drift and reverted it by itself. Nobody runs kubectl against prod — the repo is the only door in.","⚡ 자동 동기화: 에이전트가 드리프트를 감지하고 스스로 되돌렸습니다. 아무도 prod에 kubectl을 치지 않습니다 — 저장소가 유일한 입구입니다."],
  ["Auto-sync ON — the agent now converges every drift by itself within seconds.","자동 동기화 ON — 이제 에이전트가 모든 드리프트를 몇 초 안에 스스로 수렴시킵니다."],
  ["Auto-sync OFF — the agent only reports drift; you press sync.","자동 동기화 OFF — 에이전트는 드리프트를 보고만 하고, 동기화는 직접 눌러야 합니다."],
+ ["kubectl apply -f crd.yaml — the API server just learned a new kind: PostgresCluster. Nothing is running; the cluster only gained vocabulary.","kubectl apply -f crd.yaml — API 서버가 방금 새 kind를 배웠습니다: PostgresCluster. 아무것도 실행되지 않습니다. 클러스터는 어휘만 하나 늘었습니다."],
+ ["kubectl apply -f pg.yaml — the CR is stored. Still nothing runs: an object in etcd is just a record of intent. Someone has to act on it.","kubectl apply -f pg.yaml — CR이 저장되었습니다. 여전히 아무것도 실행되지 않습니다: etcd의 오브젝트는 의도의 기록일 뿐, 누군가 행동에 옮겨야 합니다."],
+ ["The operator — itself just a pod — starts watching PostgresClusters. It sees desired (2 instances) ≠ actual (0)… a familiar loop?","오퍼레이터가 — 그 자체로 그냥 파드입니다 — PostgresCluster 감시를 시작합니다. 원함(인스턴스 2) ≠ 실제(0)를 발견… 어디서 본 루프죠?"],
+ ["The operator creates what a DBA would have: a StatefulSet (primary + replica), a Service, a credentials Secret. Encoded expertise, running the reconcile loop.","오퍼레이터가 DBA라면 만들었을 것들을 만듭니다: StatefulSet(프라이머리 + 레플리카), Service, 자격 증명 Secret. 전문 지식을 코드로 담아 조정 루프를 돌립니다."],
+ ["💥 The primary dies. The operator promotes the replica and recreates the pod — automatic failover. Same reconcile loop as the ReplicaSet in Module 3; you just wrote the controller.","💥 프라이머리가 죽습니다. 오퍼레이터가 레플리카를 승격시키고 파드를 재생성합니다 — 자동 페일오버. K8s 개념 모듈의 ReplicaSet과 같은 조정 루프이고, 컨트롤러를 직접 쓴 것뿐입니다."],
+ ["API server: new kind registered — PostgresCluster","API 서버: 새 kind 등록됨 — PostgresCluster"],
+ ["postgresclusters/shop-db — spec stored, nothing running","postgresclusters/shop-db — spec 저장됨, 아직 아무것도 실행 안 됨"],
+ ["pod postgres-operator — Running, watching PostgresClusters","pod postgres-operator — Running, PostgresCluster 감시 중"],
+ ["pod shop-db-0 — recreated, replica","pod shop-db-0 — 재생성됨, 레플리카"],
+ ["pod shop-db-1 — promoted → primary","pod shop-db-1 — 승격 → 프라이머리"],
+ ["pod shop-db-1 — replica","pod shop-db-1 — 레플리카"],
+ ["pod shop-db-0 — primary","pod shop-db-0 — 프라이머리"],
 ];;
 
 export function tr(lang,h){

@@ -205,6 +205,91 @@ function GitOpsLoopDemo({ c, lang }) {
   );
 }
 
+const OP_YAML_CRD = `# crd.yaml
+kind: CustomResourceDefinition
+metadata:
+  name: postgresclusters.example.io
+spec:
+  names:
+    kind: PostgresCluster`;
+const OP_YAML_CR = `# pg.yaml
+kind: PostgresCluster
+metadata:
+  name: shop-db
+spec:
+  instances: 2
+  version: "16"`;
+
+const OP_NARR = [
+  'kubectl apply -f crd.yaml — the API server just learned a new kind: PostgresCluster. Nothing is running; the cluster only gained vocabulary.',
+  'kubectl apply -f pg.yaml — the CR is stored. Still nothing runs: an object in etcd is just a record of intent. Someone has to act on it.',
+  'The operator — itself just a pod — starts watching PostgresClusters. It sees desired (2 instances) ≠ actual (0)… a familiar loop?',
+  'The operator creates what a DBA would have: a StatefulSet (primary + replica), a Service, a credentials Secret. Encoded expertise, running the reconcile loop.',
+  '💥 The primary dies. The operator promotes the replica and recreates the pod — automatic failover. Same reconcile loop as the ReplicaSet in Module 3; you just wrote the controller.',
+];
+
+// what the cluster pane shows after each step (1-indexed by step)
+const OP_ROWS = [
+  { at: 1, icon: '📘', text: 'API server: new kind registered — PostgresCluster', dim: false },
+  { at: 2, icon: '📄', text: 'postgresclusters/shop-db — spec stored, nothing running', dim: false },
+  { at: 3, icon: '🤖', text: 'pod postgres-operator — Running, watching PostgresClusters', dim: false },
+  { at: 4, icon: '🐘', text: 'pod shop-db-0 — primary', kill: true },
+  { at: 4, icon: '🐘', text: 'pod shop-db-1 — replica', promote: true },
+  { at: 4, icon: '🔌', text: 'svc shop-db · secret shop-db-creds', dim: false },
+  { at: 5, icon: '🐘', text: 'pod shop-db-0 — recreated, replica', dim: false },
+];
+
+/** Five-step CRD → CR → operator → children → failover walk-through. */
+function OperatorDemo({ c, lang }) {
+  const [step, setStep] = useState(0);
+  const yaml = step >= 2 ? OP_YAML_CR : step >= 1 ? OP_YAML_CRD : null;
+  const headStyle = { margin: '8px 0 4px', fontSize: 12, color: 'var(--muted)' };
+
+  return (
+    <>
+      <Rich tag="h4" style={{ marginTop: 18 }} content={c.crdDemoTitle} />
+      <Rich tag="p" content={c.crdDemoIntro} />
+      <div>
+        <button className="act primary" onClick={() => setStep((s) => Math.min(s + 1, 5))} disabled={step >= 5}>
+          {c.crdDemoBtnNext} {step > 0 && `(${step}/5)`}
+        </button>
+        <button className="act" onClick={() => setStep(0)}>{c.crdDemoBtnReset}</button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <h5 style={headStyle}>{c.crdDemoYamlHead}</h5>
+          <pre className="code" style={{ margin: 0, minHeight: 120 }}>{yaml || ' '}</pre>
+        </div>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <h5 style={headStyle}>{c.crdDemoClusterHead}</h5>
+          <div style={{ background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', minHeight: 120 }}>
+            {OP_ROWS.filter((r) => step >= r.at).map((r, i) => {
+              const killed = r.kill && step >= 5;
+              const promoted = r.promote && step >= 5;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: 12,
+                    padding: '2px 0',
+                    color: killed ? 'var(--red)' : 'var(--text)',
+                    textDecoration: killed ? 'line-through' : 'none',
+                  }}
+                >
+                  {r.icon} {tr(lang, promoted ? r.text.replace('replica', 'promoted → primary') : r.text)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="hint" style={{ minHeight: 40 }}>
+        {step === 0 ? <Rich tag="span" content={c.crdDemoHint0} /> : <Html tag="span" html={tr(lang, OP_NARR[step - 1])} />}
+      </div>
+    </>
+  );
+}
+
 /** Defense-in-depth stack: click a layer, read what it guards, jump to its drill. */
 function SecurityLayers({ c, lang }) {
   const [sel, setSel] = useState(null);
@@ -270,7 +355,12 @@ export default function Production() {
         <SecurityLayers c={c} lang={lang} />
       </div>
 
-      <Rich content={c.crdCard} />
+      <div className="card">
+        {/* crdCard is a single card — render its body here so the widget joins it */}
+        <Rich content={c.crdCard[0].c} />
+        <OperatorDemo c={c} lang={lang} />
+      </div>
+
       <Rich content={c.clusterCard} />
     </>
   );

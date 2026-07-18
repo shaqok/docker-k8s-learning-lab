@@ -3283,6 +3283,24 @@ export default {
     ]
    }
   ],
+  "crdDemoTitle": "🧬 Step through — teach the cluster a new trick",
+  "crdDemoIntro": [
+   "Five steps from empty cluster to self-healing database. Watch what each ",
+   {
+    "t": "code",
+    "c": [
+     "apply"
+    ]
+   },
+   " actually does — and what doesn't happen."
+  ],
+  "crdDemoBtnNext": "▶ next step",
+  "crdDemoBtnReset": "↺ reset",
+  "crdDemoYamlHead": "what you apply",
+  "crdDemoClusterHead": "what exists in the cluster",
+  "crdDemoHint0": [
+   "Press next: first we teach the API server a new kind."
+  ],
   "clusterCard": [
    {
     "t": "div",

@@ -3271,6 +3271,24 @@ export default {
     ]
    }
   ],
+  "crdDemoTitle": "🧬 단계별로 — 클러스터에 새 재주 가르치기",
+  "crdDemoIntro": [
+   "빈 클러스터에서 스스로 복구하는 데이터베이스까지 다섯 단계. 각 ",
+   {
+    "t": "code",
+    "c": [
+     "apply"
+    ]
+   },
+   "가 실제로 하는 일 — 그리고 일어나지 않는 일 — 을 지켜보세요."
+  ],
+  "crdDemoBtnNext": "▶ 다음 단계",
+  "crdDemoBtnReset": "↺ 처음부터",
+  "crdDemoYamlHead": "내가 apply 하는 것",
+  "crdDemoClusterHead": "클러스터에 존재하는 것",
+  "crdDemoHint0": [
+   "next를 누르세요: 먼저 API 서버에 새 kind를 가르칩니다."
+  ],
   "clusterCard": [
    {
     "t": "div",
