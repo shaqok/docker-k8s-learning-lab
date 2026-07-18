@@ -161,6 +161,8 @@ export const KO_STR=[
  ["Expert territory — GPUs and production await.","전문가 영역 — GPU와 프로덕션이 기다립니다."],
  ["🏆 Roadmap complete. Go run it for real.","🏆 로드맵 완주! 이제 실전에서 돌려보세요."],
  /* m9 production widgets */
+ ["Same templates, different values — only the highlighted lines changed. This is how one chart serves dev, staging and prod.","같은 템플릿, 다른 값 — 강조된 줄만 바뀌었습니다. 차트 하나가 dev·staging·prod를 모두 감당하는 방식입니다."],
+ ["ingress.enabled=true — a whole Ingress object appeared in the render. Values don't just fill blanks; {{ if }} switches entire objects on and off.","ingress.enabled=true — 렌더링에 Ingress 오브젝트가 통째로 나타났습니다. 값은 빈칸만 채우는 게 아니라, {{ if }}로 오브젝트 전체를 켜고 끕니다."],
  ["PR merged — the repo now wants <b>web:v2</b>. The cluster still runs v1 — <b>OutOfSync</b>. In GitOps the repo changes first; the cluster follows.","PR 머지 완료 — 저장소는 이제 <b>web:v2</b>를 원합니다. 클러스터는 아직 v1 — <b>OutOfSync</b>. GitOps에서는 저장소가 먼저 바뀌고 클러스터가 따라갑니다."],
  ["git revert — the repo wants v1 again. Rollback is just another commit; the agent converges the cluster the same way it deploys.","git revert — 저장소가 다시 v1을 원합니다. 롤백도 그저 커밋 하나일 뿐, 에이전트는 배포와 똑같은 방식으로 클러스터를 수렴시킵니다."],
  ["kubectl edit against prod: replicas 3 → 5. The cluster now disagrees with git — <b>drift</b>. Six months later nobody remembers why prod is different… except the agent, which flags it.","prod에 kubectl edit: replicas 3 → 5. 이제 클러스터가 git과 어긋났습니다 — <b>드리프트</b>. 6개월 뒤엔 아무도 prod가 왜 다른지 기억 못 하죠… 드리프트를 표시해 주는 에이전트만 빼고요."],

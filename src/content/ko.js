@@ -3030,6 +3030,29 @@ export default {
     ]
    }
   ],
+  "helmDemoTitle": "🎛 해보기 — values를 넣으면 매니페스트가 나온다",
+  "helmDemoIntro": [
+   "아래는 손잡이가 세 개 달린 진짜 차트입니다. 값을 바꾸면 ",
+   {
+    "t": "code",
+    "c": [
+     "helm template"
+    ]
+   },
+   " 렌더링이 어떻게 변하는지 보세요 — 강조된 줄이 바뀐 부분입니다. 템플릿은 그대로, ",
+   {
+    "t": "code",
+    "c": [
+     "values.yaml"
+    ]
+   },
+   "만 바뀝니다."
+  ],
+  "helmValuesHead": "values.yaml — 손잡이",
+  "helmRenderHead": "렌더링된 매니페스트",
+  "helmDemoHint0": [
+   "기본값은 web:v1 한 개, Ingress 없음. replicas 5, tag v2, ingress 켜기를 시도해 보세요."
+  ],
   "gitopsDemoTitle": "🔁 해보기 — 조정 루프를 눈으로",
   "gitopsDemoIntro": [
    "머지로 배포하고, revert로 롤백하고 — 누군가 prod를 손으로 고치면 무슨 일이 생기는지 보세요. 에이전트(",

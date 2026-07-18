@@ -7,6 +7,7 @@ import { content } from '../content/index.js';
 import { tr } from '../i18n/dynamic.js';
 import { SEC_LAYERS } from '../data/securityLayers.js';
 import { initialGitops, gitopsDemoStep, gitopsStatus } from '../data/gitopsDemo.js';
+import { renderDemo, valuesText, diffLines } from '../data/helmDemo.js';
 
 const SEC_KEYS = ['rbac', 'podsec', 'netpol', 'supply'];
 const SEC_PRACTICE = {
@@ -15,6 +16,92 @@ const SEC_PRACTICE = {
   netpol: { to: 'm13', sub: 'netpol' },
   supply: { to: 'm20', sub: 'supply-chain' },
 };
+
+const HELM_NARR_VALUES =
+  'Same templates, different values — only the highlighted lines changed. This is how one chart serves dev, staging and prod.';
+const HELM_NARR_IF =
+  "ingress.enabled=true — a whole Ingress object appeared in the render. Values don't just fill blanks; {{ if }} switches entire objects on and off.";
+
+/** Pre block whose changed-vs-baseline lines are highlighted. */
+function DiffPre({ text, baseline }) {
+  const changed = diffLines(text, baseline);
+  return (
+    <pre className="code" style={{ margin: 0, flex: 1, minWidth: 0 }}>
+      {text.split('\n').map((l, i) => (
+        <span key={i} style={changed[i] ? { background: 'rgba(88,166,255,.18)', display: 'block' } : { display: 'block' }}>
+          {l || ' '}
+        </span>
+      ))}
+    </pre>
+  );
+}
+
+/** Three knobs on a real chart, rendered by the real template engine. */
+function HelmValuesDemo({ c, lang }) {
+  const [replicaCount, setReplicaCount] = useState(1);
+  const [tag, setTag] = useState('v1');
+  const [ingressOn, setIngressOn] = useState(false);
+
+  const overrides = { replicaCount, image: { tag }, ingress: { enabled: ingressOn } };
+  const rendered = renderDemo(overrides).text;
+  const baseline = renderDemo().text;
+  const isDefault = replicaCount === 1 && tag === 'v1' && !ingressOn;
+  const setFlags = [
+    replicaCount !== 1 && `replicaCount=${replicaCount}`,
+    tag !== 'v1' && `image.tag=${tag}`,
+    ingressOn && 'ingress.enabled=true',
+  ].filter(Boolean);
+  const selStyle = { background: 'var(--panel2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: 5 };
+  const headStyle = { margin: '8px 0 4px', fontSize: 12, color: 'var(--muted)' };
+
+  return (
+    <>
+      <Rich tag="h4" style={{ marginTop: 18 }} content={c.helmDemoTitle} />
+      <Rich tag="p" content={c.helmDemoIntro} />
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 13 }}>
+          <code>replicaCount</code>{' '}
+          {[1, 3, 5].map((n) => (
+            <button key={n} className={'act mini' + (replicaCount === n ? ' primary' : '')} onClick={() => setReplicaCount(n)}>
+              {n}
+            </button>
+          ))}
+        </label>
+        <label style={{ fontSize: 13 }}>
+          <code>image.tag</code>{' '}
+          <select value={tag} onChange={(e) => setTag(e.target.value)} style={selStyle}>
+            <option value="v1">v1</option>
+            <option value="v2">v2</option>
+          </select>
+        </label>
+        <label style={{ fontSize: 13, cursor: 'pointer' }}>
+          <input type="checkbox" checked={ingressOn} onChange={(e) => setIngressOn(e.target.checked)} /> <code>ingress.enabled</code>
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <h5 style={headStyle}>{c.helmValuesHead}</h5>
+          <DiffPre text={valuesText(overrides)} baseline={valuesText()} />
+        </div>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <h5 style={headStyle}>{c.helmRenderHead}</h5>
+          <DiffPre text={rendered} baseline={baseline} />
+        </div>
+      </div>
+      <div className="hint" style={{ minHeight: 40 }}>
+        {isDefault ? (
+          <Rich tag="span" content={c.helmDemoHint0} />
+        ) : (
+          <>
+            <code>$ helm upgrade web ./mychart --set {setFlags.join(',')}</code>
+            <br />
+            <Html tag="span" html={tr(lang, ingressOn ? HELM_NARR_IF : HELM_NARR_VALUES)} />
+          </>
+        )}
+      </div>
+    </>
+  );
+}
 
 const GITOPS_NARR = {
   'merge-pr': 'PR merged — the repo now wants <b>web:v2</b>. The cluster still runs v1 — <b>OutOfSync</b>. In GitOps the repo changes first; the cluster follows.',
@@ -153,7 +240,16 @@ export default function Production() {
       <Rich tag="h2" content={c.title} />
       <Rich tag="p" className="sub" content={c.sub} />
 
-      <Rich content={c.helmCard} />
+      <div className="card">
+        {/* helmCard is a single card — render its body here so the widget joins it */}
+        <Rich content={c.helmCard[0].c} />
+        <HelmValuesDemo c={c} lang={lang} />
+        <PracticeLink
+          to="m19"
+          sub="helm"
+          blurb={{ en: 'Install, upgrade and roll back a real chart with helm', ko: 'helm으로 진짜 차트를 설치·업그레이드·롤백해 보기' }}
+        />
+      </div>
 
       <div className="card">
         {/* gitopsCard is a single card — render its body here so the widget joins it */}

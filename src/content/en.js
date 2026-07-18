@@ -3041,6 +3041,29 @@ export default {
     ]
    }
   ],
+  "helmDemoTitle": "🎛 Try it — values in, manifests out",
+  "helmDemoIntro": [
+   "Below is a real chart with three knobs. Change a value and watch the ",
+   {
+    "t": "code",
+    "c": [
+     "helm template"
+    ]
+   },
+   " render update — highlighted lines are what changed. The templates never change; only ",
+   {
+    "t": "code",
+    "c": [
+     "values.yaml"
+    ]
+   },
+   " does."
+  ],
+  "helmValuesHead": "values.yaml — the knobs",
+  "helmRenderHead": "rendered manifests",
+  "helmDemoHint0": [
+   "Defaults render one replica of web:v1 and no Ingress. Try replicas 5, tag v2, or switch the ingress on."
+  ],
   "gitopsDemoTitle": "🔁 Try it — the reconciliation loop, live",
   "gitopsDemoIntro": [
    "Deploy by merging, roll back by reverting — and watch what happens when someone edits prod by hand. The agent (",
