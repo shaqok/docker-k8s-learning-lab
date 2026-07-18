@@ -71,6 +71,12 @@ export function qosOf(pod) {
 const BASE_MEM = { nginx: 22, httpd: 28, redis: 34, postgres: 84, busybox: 4, alpine: 4 };
 const baseMemOf = (image) => BASE_MEM[imageRepo(image)] || 30;
 
+/** Ring sizes for the observability model: log lines per container, metric samples per pod. */
+const LOG_CAP = 200;
+const METRICS_CAP = 60;
+/** How often a healthy container writes an access-log line. */
+const HEARTBEAT_MS = 2400;
+
 const matchesSelector = (labels = {}, sel = {}) => Object.entries(sel).every(([k, v]) => labels[k] === v);
 
 /** Full label selector: matchLabels + matchExpressions (In/NotIn/Exists/DoesNotExist). */
@@ -126,11 +132,90 @@ export function createEngine({ onMission = () => {} } = {}) {
     return out;
   }
 
+  /**
+   * Real Kubernetes never stores the same event twice: a repeat of the same
+   * (object, reason, message) bumps ONE row's `count` and its lastTimestamp.
+   * That aggregation is what makes an event storm readable — a CrashLoopBackOff
+   * pod shows `BackOff … 47` instead of 47 identical lines.
+   */
   function addEvent({ ns = 'default', type = 'Normal', reason, object, message }) {
-    const last = events[events.length - 1];
-    if (last && last.object === object && last.reason === reason) return; // don't spam
-    events.push({ t: Date.now(), ns, type, reason, object, message });
+    const now = Date.now();
+    const same = events.find((e) => e.object === object && e.reason === reason && e.message === message);
+    if (same) {
+      same.count++;
+      same.t = now;
+      same.lastTimestamp = now;
+      return same;
+    }
+    const ev = { t: now, firstTimestamp: now, lastTimestamp: now, count: 1, ns, type, reason, object, message };
+    events.push(ev);
     if (events.length > 60) events.shift();
+    return ev;
+  }
+
+  // ---------- logs ----------
+  /**
+   * Per-container log buffers. Unlike the old canned per-image lines, these
+   * accumulate as the cluster runs — so two replicas of one image diverge, and
+   * `kubectl logs` becomes a real diagnostic instead of a fixed string.
+   * On restart the buffer rotates into `prevLogs`, which is what `--previous` reads.
+   */
+  function podLog(pod, containerName, msg) {
+    const buf = pod.sim.logs || (pod.sim.logs = {});
+    const lines = buf[containerName] || (buf[containerName] = []);
+    lines.push({ t: Date.now(), msg });
+    if (lines.length > LOG_CAP) lines.shift();
+    return lines;
+  }
+
+  /** Move a container's log buffer aside so `logs --previous` can still read it. */
+  function rotateLog(pod, containerName) {
+    const buf = pod.sim.logs || (pod.sim.logs = {});
+    if (!buf[containerName] || !buf[containerName].length) return;
+    (pod.sim.prevLogs || (pod.sim.prevLogs = {}))[containerName] = buf[containerName];
+    buf[containerName] = [];
+  }
+
+  /** The banner a container writes on startup — pod-specific, so replicas differ. */
+  function seedContainerLog(pod, c) {
+    const info = K8S_IMAGES[imageRepo(c.image)];
+    for (const line of (info && info.logs) || []) podLog(pod, c.name, line);
+    if (info && info.port) podLog(pod, c.name, `ready: listening on ${pod.status.podIP || '0.0.0.0'}:${info.port}`);
+  }
+
+  /** Steady-state chatter, so `--tail` / `--since` have something to trim. */
+  function heartbeatLog(pod, c, now) {
+    const info = K8S_IMAGES[imageRepo(c.image)];
+    if (!info || !info.port) return;
+    const cstate = pod.sim.containers[c.name] || (pod.sim.containers[c.name] = {});
+    if (now - (cstate.lastBeat || 0) < HEARTBEAT_MS) return;
+    cstate.lastBeat = now;
+    const sick = pod.sim.app !== 'ok' || (cstate.app && cstate.app !== 'ok');
+    podLog(pod, c.name, sick
+      ? `"GET /healthz HTTP/1.1" 503 - upstream did not respond`
+      : `"GET /healthz HTTP/1.1" 200 -`);
+  }
+
+  // ---------- metrics ----------
+  /** Per-pod CPU: a name-derived base, a slow wobble, and any injected load factor. */
+  function cpuOf(pod, now = Date.now()) {
+    const seed = [...pod.metadata.name].reduce((s, ch) => s + ch.charCodeAt(0), 0);
+    const base = 2 + (seed % 7);
+    const wobble = 3 * Math.sin(now / 4000 + seed);
+    return Math.max(1, Math.round((base + wobble) * (pod.sim.load || 1)));
+  }
+
+  /** One rolling sample per tick — backs `kubectl top`, the sparklines and the SLO math. */
+  function sampleMetrics(pod, now) {
+    const ring = pod.sim.metrics || (pod.sim.metrics = []);
+    ring.push({ t: now, cpuM: cpuOf(pod, now), memMi: pod.sim.memMi || 0, ready: !!pod.status.ready });
+    if (ring.length > METRICS_CAP) ring.shift();
+  }
+
+  /** Fault knob for the SLO lab: multiply a pod's CPU draw (1 = normal). */
+  function setLoad(pod, factor) {
+    pod.sim.load = factor;
+    notify();
   }
 
   // ---------- factories ----------
@@ -632,6 +717,7 @@ export function createEngine({ onMission = () => {} } = {}) {
         pod.status.ready = true;
         checkHeal();
       }
+      seedContainerLog(pod, mainContainer(pod));
       if (cs0) { cs0.state = pod.status.state; cs0.ready = pod.status.ready; }
       notify();
     }, 900 + Math.random() * 600);
@@ -684,6 +770,7 @@ export function createEngine({ onMission = () => {} } = {}) {
         else {
           cs.state = 'Running';
           cs.ready = !probeBrokenFor(pod, c);
+          seedContainerLog(pod, c);
           if (!cs.ready) addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'Unhealthy', object: 'Pod/' + pod.metadata.name, message: (c.name === mainName && pod.sim.notReadyReason) || readinessFailMsgFor(pod, c) });
         }
       }
@@ -706,6 +793,9 @@ export function createEngine({ onMission = () => {} } = {}) {
     notify();
   }
 
+  /** What a dying container prints — scenarios override it via `pod.sim.crashLog`. */
+  const crashLines = (pod) => pod.sim.crashLog || ['exec: process exited with code 1'];
+
   function crashCycle(pod) {
     pod.status.phase = 'Running';
     pod.status.state = 'Running';
@@ -714,6 +804,10 @@ export function createEngine({ onMission = () => {} } = {}) {
     if (cs0) { cs0.state = 'Running'; cs0.ready = false; }
     setTimeout(() => {
       if (!alive(pod)) return;
+      // the instance dies: it writes its last words, then its buffer rotates so
+      // `kubectl logs --previous` can still show them after the restart.
+      for (const line of crashLines(pod)) podLog(pod, mainContainer(pod).name, line);
+      rotateLog(pod, mainContainer(pod).name);
       pod.status.state = 'CrashLoopBackOff';
       pod.status.restarts++;
       if (cs0) { cs0.state = 'CrashLoopBackOff'; cs0.restartCount = pod.status.restarts; }
@@ -730,6 +824,8 @@ export function createEngine({ onMission = () => {} } = {}) {
     recomputePodAggregate(pod);
     setTimeout(() => {
       if (!alive(pod)) return;
+      for (const line of crashLines(pod)) podLog(pod, c.name, line);
+      rotateLog(pod, c.name);
       cs.state = 'CrashLoopBackOff';
       cs.ready = false;
       cs.restartCount = (cs.restartCount || 0) + 1;
@@ -846,10 +942,12 @@ export function createEngine({ onMission = () => {} } = {}) {
     if (pod.sim.leakSince) pod.sim.leakSince = Date.now(); // a leaky app leaks again after restart
     const cs0 = pod.status.containerStatuses && pod.status.containerStatuses[0];
     if (cs0) { cs0.restartCount = pod.status.restarts; cs0.ready = false; }
+    rotateLog(pod, mainContainer(pod).name);
     setTimeout(() => {
       if (!alive(pod)) return;
       pod.status.state = 'Running';
       pod.status.ready = !probeBroken(pod) && !pod.sim.unreadyByApp;
+      seedContainerLog(pod, mainContainer(pod));
       if (cs0) { cs0.state = 'Running'; cs0.ready = pod.status.ready; }
       notify();
     }, 1300);
@@ -863,10 +961,12 @@ export function createEngine({ onMission = () => {} } = {}) {
     const cstate = pod.sim.containers[c.name] || (pod.sim.containers[c.name] = {});
     cstate.leakExtraMi = 0;
     if (cstate.leakSince) cstate.leakSince = Date.now();
+    rotateLog(pod, c.name);
     setTimeout(() => {
       if (!alive(pod)) return;
       cs.state = 'Running';
       cs.ready = !probeBrokenFor(pod, c) && !cstate.unreadyByApp;
+      seedContainerLog(pod, c);
       recomputePodAggregate(pod);
       notify();
     }, 1300);
@@ -885,6 +985,10 @@ export function createEngine({ onMission = () => {} } = {}) {
     const c = mainContainer(pod);
     const cs0 = pod.status.containerStatuses && pod.status.containerStatuses[0];
 
+    heartbeatLog(pod, c, now);
+    sampleMetrics(pod, now);
+    changed = true; // a fresh metrics sample is a render-worthy change (sparklines, top)
+
     // memory: base + leaked so far, OOMKill on limit breach
     const leakLive = pod.sim.leakSince ? ((now - pod.sim.leakSince) / 1000) * LEAK_MI_PER_SEC : 0;
     const mem = baseMemOf(c.image) + (pod.sim.leakExtraMi || 0) + leakLive;
@@ -894,6 +998,7 @@ export function createEngine({ onMission = () => {} } = {}) {
       pod.sim.oomCount = (pod.sim.oomCount || 0) + 1;
       pod.status.state = 'OOMKilled';
       if (cs0) cs0.state = 'OOMKilled';
+      podLog(pod, c.name, 'fatal: out of memory — killed with exit code 137');
       addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'OOMKilled', object: 'Pod/' + pod.metadata.name, message: `Container ${c.name} exceeded its memory limit (${c.resources.limits.memory}): killed with exit code 137, restarting` });
       restartContainer(pod);
       return true;
@@ -910,6 +1015,7 @@ export function createEngine({ onMission = () => {} } = {}) {
         pod.status.ready = false;
         if (cs0) cs0.ready = false;
         pod.sim.unreadyByApp = true;
+        podLog(pod, c.name, `WARN readiness probe failing — ${pod.sim.app === 'hang' ? 'request handler blocked' : 'returning HTTP 503'}`);
         addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'Unhealthy', object: 'Pod/' + pod.metadata.name, message: 'Readiness ' + failMsg });
         changed = true;
       }
@@ -928,11 +1034,13 @@ export function createEngine({ onMission = () => {} } = {}) {
 
   /** Multi-container tick: every container's memory/probe verdicts are independent. */
   function tickMulti(pod, now) {
-    let changed = false;
+    let changed = true; // see tickSingle: the metrics sample below is itself a change
+    sampleMetrics(pod, now);
     for (const c of pod.spec.containers) {
       const cs = pod.status.containerStatuses.find((s) => s.name === c.name);
       if (!cs || cs.state !== 'Running') continue;
       const cstate = pod.sim.containers[c.name] || (pod.sim.containers[c.name] = {});
+      heartbeatLog(pod, c, now);
 
       const leakLive = cstate.leakSince ? ((now - cstate.leakSince) / 1000) * LEAK_MI_PER_SEC : 0;
       const mem = baseMemOf(c.image) + (cstate.leakExtraMi || 0) + leakLive;
@@ -941,6 +1049,7 @@ export function createEngine({ onMission = () => {} } = {}) {
         cstate.oomCount = (cstate.oomCount || 0) + 1;
         cs.state = 'OOMKilled';
         recomputePodAggregate(pod);
+        podLog(pod, c.name, 'fatal: out of memory — killed with exit code 137');
         addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'OOMKilled', object: 'Pod/' + pod.metadata.name, message: `Container ${c.name} exceeded its memory limit (${c.resources.limits.memory}): killed with exit code 137, restarting` });
         restartOneContainer(pod, c, cs);
         return true;
@@ -954,8 +1063,8 @@ export function createEngine({ onMission = () => {} } = {}) {
           cs.ready = false;
           cstate.unreadyByApp = true;
           recomputePodAggregate(pod);
+          podLog(pod, c.name, `WARN readiness probe failing — ${cstate.app === 'hang' ? 'request handler blocked' : 'returning HTTP 503'}`);
           addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'Unhealthy', object: 'Pod/' + pod.metadata.name, message: 'Readiness ' + failMsg });
-          changed = true;
         }
         if (c.livenessProbe && cstate.app === 'hang' && now - cstate.appBadSince >= probeWindowMs(c.livenessProbe)) {
           addEvent({ ns: pod.metadata.namespace, type: 'Warning', reason: 'Unhealthy', object: 'Pod/' + pod.metadata.name, message: 'Liveness ' + failMsg });
@@ -1648,8 +1757,10 @@ export function createEngine({ onMission = () => {} } = {}) {
     reconcilePVCBinding, resolveVolumeStore,
     // lifecycle
     reconcile, markTerminating, flushTerminating, deletePodAndHeal, setNodeReady, deleteNamespaceContents,
+    // observability
+    podLog, cpuOf,
     // interactive-lab ops
-    setAppState, setLeak, setAutoSync,
+    setAppState, setLeak, setLoad, setAutoSync,
     // ui
     subscribe, notify, view,
     onMission,
