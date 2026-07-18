@@ -187,6 +187,19 @@ describe('metrics & SLO', () => {
 
     expect(sloOf(sim.engine, { selector: { app: 'nothing-here' } }).availability).toBeNull();
   });
+
+  it('reads a total outage as 0%, not as unknown', () => {
+    const { sim, runner, settle } = boot();
+    runner.run('kubectl create deployment gone --image=ngnix:1.27 --replicas=2'); // no such image
+    settle(12);
+    const pods = sim.engine.list('Pod', { selector: { app: 'gone' } });
+    expect(pods.length).toBeGreaterThan(0);
+    expect(pods.every((p) => !p.status.ready)).toBe(true);
+    const slo = sloOf(sim.engine, { selector: { app: 'gone' }, target: 90 });
+    expect(slo.availability).toBe(0); // never Running ⇒ never sampled, but still down
+    expect(slo.meeting).toBe(false);
+    expect(slo.budgetBurn).toBeGreaterThan(1);
+  });
 });
 
 describe.each(OBS_LABS.map((l) => [l.id, l]))('obs lab %s', (id, lab) => {

@@ -176,10 +176,14 @@ export function ProgressProvider({ children }) {
     });
   }, []);
 
-  /** One resolved incident: id, the two clocks, whether the root cause was named. */
-  const recordIncident = useCallback((res) => {
+  /**
+   * One resolved incident: id, the two clocks, whether the root cause was named.
+   * `band` is dropped — it is derivable from timeToResolve, and storing it would
+   * pin old attempts to whatever the thresholds were on the day they ran.
+   */
+  const recordIncident = useCallback(({ band, ...res }) => {
     setIncidentResults((prev) => {
-      const next = [...prev, { ...res, at: Date.now(), band: undefined }];
+      const next = [...prev, { ...res, at: Date.now() }];
       try { localStorage.setItem('dk8sincident', JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });

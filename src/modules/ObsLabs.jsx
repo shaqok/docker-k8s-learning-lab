@@ -306,30 +306,30 @@ export default function ObsLabs() {
         </div>
       ))}
 
-      {tab === 'incident' && (
-        <>
-          <Rich tag="p" className="hint" content={c.incidentIntro} />
-          <IncidentRunner lang={lang} c={c} history={incidentResults} onResolved={recordIncident} />
-          {!!incidentResults.length && (
-            <>
-              <h3>{c.historyTitle}</h3>
-              {incidentResults.slice().reverse().slice(0, 8).map((r, i) => (
-                <div key={i} className="ckad-row">
-                  <div className="ckad-row-head">
-                    <span className="ckad-pod-name">📟 {r.id}</span>
-                    <span className={'ckad-chip ' + (r.causeCorrect ? 'ok' : 'warn')}>
-                      {r.causeCorrect ? c.causeRight : c.causeWrong}
-                    </span>
-                    <span className="ckad-chip">🏁 {fmtClock(r.timeToResolve)}</span>
-                    <span className="ckad-muted">{new Date(r.at).toLocaleString()}</span>
-                  </div>
+      {/* visibility-toggled, never unmounted: the incident owns a running sim and
+          two clocks, and tabbing away to re-read the log syntax must not restart it */}
+      <div style={{ display: tab === 'incident' ? '' : 'none' }}>
+        <Rich tag="p" className="hint" content={c.incidentIntro} />
+        <IncidentRunner lang={lang} c={c} history={incidentResults} onResolved={recordIncident} />
+        {!!incidentResults.length && (
+          <>
+            <h3>{c.historyTitle}</h3>
+            {incidentResults.slice().reverse().slice(0, 8).map((r, i) => (
+              <div key={i} className="ckad-row">
+                <div className="ckad-row-head">
+                  <span className="ckad-pod-name">📟 {r.id}</span>
+                  <span className={'ckad-chip ' + (r.causeCorrect ? 'ok' : 'warn')}>
+                    {r.causeCorrect ? c.causeRight : c.causeWrong}
+                  </span>
+                  <span className="ckad-chip">🏁 {fmtClock(r.timeToResolve)}</span>
+                  <span className="ckad-muted">{new Date(r.at).toLocaleString()}</span>
                 </div>
-              ))}
-            </>
-          )}
-          <p className="ckad-muted">{c.poolNote.replace('{n}', INCIDENTS.length)}</p>
-        </>
-      )}
+              </div>
+            ))}
+          </>
+        )}
+        <p className="ckad-muted">{c.poolNote.replace('{n}', INCIDENTS.length)}</p>
+      </div>
     </>
   );
 }

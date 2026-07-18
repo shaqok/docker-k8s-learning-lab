@@ -1560,6 +1560,10 @@ export function createKubectl(engine, { files = null, onEdit = null, host = null
       // a crashing container may not have written its buffer yet
       if ((cs && cs.state === 'CrashLoopBackOff') || (containers.length <= 1 && p.sim.crash))
         return print(esc((p.sim.crashLog || ['exec: process exited with code 1']).join('\n')));
+      // mid-restart (the buffer has rotated, the new instance has not started):
+      // real kubectl says the container is not up yet rather than serving silence
+      if ((cs && cs.state === 'OOMKilled') || p.status.state === 'OOMKilled')
+        return print(`Error from server (BadRequest): container "${c.name}" in pod "${p.metadata.name}" is waiting to start: restarting`, 'err');
       return print(esc('(no logs)'));
     }
     printLogLines(print, lines, flags);

@@ -1,4 +1,4 @@
-import { rid } from '../sims/util.js';
+import { seedPods } from './scenarios.js';
 import { sloOf } from '../sims/k8s/slo.js';
 
 /**
@@ -12,29 +12,6 @@ import { sloOf } from '../sims/k8s/slo.js';
 
 const K8S_D = 'https://kubernetes.io/docs';
 const SLO_TARGET = 90;
-
-/** Seed pods for a deployment as already-scheduled, so a fault can be injected per pod. */
-function seedPods(engine, dep, n, override = null) {
-  const c = dep.spec.template.spec.containers[0];
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const p = engine.makePod({
-      name: dep.sim.rsName + '-' + rid(5),
-      ns: dep.metadata.namespace,
-      labels: { ...dep.spec.template.metadata.labels },
-      image: c.image,
-      command: c.command || null,
-      readinessProbe: c.readinessProbe || null,
-      containerPort: c.ports && c.ports[0] ? c.ports[0].containerPort : null,
-      owner: dep.metadata.namespace + '/' + dep.metadata.name,
-      rsName: dep.sim.rsName,
-      nodeName: 'worker-' + ((i % 2) + 1),
-    });
-    if (override) override(p, i);
-    out.push(p);
-  }
-  return out;
-}
 
 const podsOf = (engine, name, ns = 'default') =>
   engine.list('Pod', { ns }).filter((p) => p.sim.owner === ns + '/' + name && p.status.state !== 'Terminating');

@@ -10,11 +10,22 @@
  * the mission checks and the tests all read the same numbers.
  */
 
-/** The last `samples` metric samples of every pod matching the selector. */
+/**
+ * The last `samples` metric samples of every pod matching the selector.
+ *
+ * Only Running pods are sampled by the kubelet tick, so a pod that is Pending
+ * or CrashLoopBackOff would contribute nothing at all — and a total outage
+ * would read as "no data" rather than 0% available. Those pods therefore count
+ * as one not-ready sample each: an unschedulable workload is not an unknown
+ * SLI, it is a down one.
+ */
 function recentSamples(engine, { ns = 'default', selector = null, samples = 10 }) {
   const pods = engine.list('Pod', { ns, ...(selector ? { selector } : {}) })
     .filter((p) => !p.sim.system && p.status.state !== 'Terminating');
-  return pods.flatMap((p) => (p.sim.metrics || []).slice(-samples));
+  return pods.flatMap((p) => {
+    const ring = (p.sim.metrics || []).slice(-samples);
+    return ring.length ? ring : [{ t: Date.now(), cpuM: 0, memMi: 0, ready: false }];
+  });
 }
 
 /**
