@@ -59,28 +59,37 @@ export default function Quiz() {
   };
   const retry = () => { setAnswers({}); setGraded(false); };
 
+  /**
+   * Two independent folds: per-domain accuracy (which the readiness dashboard
+   * reads) and per-question Leitner boxes (this module's review deck).
+   *
+   * A question feeds both at most once per session, and only if it was actually
+   * answered. Retry re-grades the same set, so without the guard you could
+   * answer correctly, retry, answer correctly again, and walk a card from box 1
+   * to retired in seconds — an interval is meant to be earned over days — while
+   * every retry re-inflated the domain counters too.
+   *
+   * Skipping a question is not the same as getting it wrong, so an unanswered
+   * question is left out entirely. That also stops "Grade me" with nothing
+   * selected from recording a wrong answer against every domain at once.
+   */
   const grade = () => {
-    // two independent folds: per-domain accuracy (readiness dashboard) and
-    // per-question Leitner boxes (this module's review deck)
     const delta = {};
     const cards = [];
     questions.forEach((q, i) => {
+      if (answers[i] === undefined) return;
+      const qid = questionId(q);
+      if (scoredRef.current.has(qid)) return;
+      scoredRef.current.add(qid);
+
       const right = answers[i] === q.c;
       for (const id of q.d) {
         if (!delta[id]) delta[id] = { r: 0, w: 0 };
         delta[id][right ? 'r' : 'w']++;
       }
-      // A card counts once per session. Retry re-grades the same frozen set, so
-      // without this you could answer correctly, retry, answer correctly again
-      // and walk a card from box 1 to retired in a few seconds — the interval
-      // is meant to be earned over days, not clicks.
-      const qid = questionId(q);
-      if (answers[i] !== undefined && !scoredRef.current.has(qid)) {
-        scoredRef.current.add(qid);
-        cards.push({ id: qid, correct: right });
-      }
+      cards.push({ id: qid, correct: right });
     });
-    recordQuiz(delta);
+    if (Object.keys(delta).length) recordQuiz(delta);
     recordCards(cards);
     setGraded(true);
   };
