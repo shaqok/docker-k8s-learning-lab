@@ -3,7 +3,9 @@ import Html from '../components/Html.jsx';
 import Rich from '../components/Rich.jsx';
 import Terminal from '../components/Terminal.jsx';
 import ManifestEditor from '../components/ManifestEditor.jsx';
+import DocLinks from '../components/DocLinks.jsx';
 import { ClusterView } from './K8sLab.jsx';
+import { docsForDomains } from '../data/docLinks.js';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { useProgress } from '../context/ProgressContext.jsx';
 import { content } from '../content/index.js';
@@ -195,6 +197,8 @@ function ExamResult({ exam, result, lang, c, onBack }) {
               <details className="exam-solution">
                 <summary>🏳 {c.solutionTitle}</summary>
                 <Html tag="p" html={task.solution[lang]} />
+                {/* shown only after grading — during the exam, finding the page is the skill */}
+                <DocLinks docs={task.docs && task.docs.length ? task.docs : docsForDomains([task.domain])} />
               </details>
             )}
           </div>

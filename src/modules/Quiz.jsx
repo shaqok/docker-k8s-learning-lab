@@ -6,6 +6,8 @@ import { content } from '../content/index.js';
 import { QUIZ_BANK } from '../data/quiz.js';
 import { EXAMS, DOMAIN_LABELS } from '../data/examDomains.js';
 import { questionId, dueCards, deckStats } from '../data/leitner.js';
+import { docsForDomains } from '../data/docLinks.js';
+import DocLinks from '../components/DocLinks.jsx';
 
 const FILTERS = ['all', 'cka', 'ckad', 'cks'];
 
@@ -215,6 +217,7 @@ export default function Quiz() {
                   <p><b>{i + 1}. {q.q[lang]}</b></p>
                   <p style={{ color: 'var(--green)' }}>✓ {q.a[lang][q.c]}</p>
                   <p style={{ color: 'var(--muted)', fontSize: 13 }}>💡 {q.why[lang]}</p>
+                  <DocLinks docs={docsForDomains(q.d)} />
                 </div>
               ))}
             </div>

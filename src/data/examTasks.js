@@ -36,6 +36,7 @@ function fromScenario(scenarioId, domain, weight) {
     domain,
     weight,
     brief: s.brief,
+    docs: s.docs,
     setup: s.setup,
     checks: s.checks,
     solution: s.solution,
@@ -47,6 +48,10 @@ function fromScenario(scenarioId, domain, weight) {
 
 const exposeTask = (domain, weight) => ({
   id: 'svc-expose',
+  docs: [
+    { label: 'Services', url: 'https://kubernetes.io/docs/concepts/services-networking/service/' },
+    { label: 'kubectl expose', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_expose/' },
+  ],
   domain,
   weight,
   brief: {
@@ -73,6 +78,9 @@ const exposeTask = (domain, weight) => ({
 
 const netpolTask = (domain, weight) => ({
   id: 'netpol-db',
+  docs: [
+    { label: 'Network policies', url: 'https://kubernetes.io/docs/concepts/services-networking/network-policies/' },
+  ],
   domain,
   weight,
   brief: {
@@ -126,6 +134,10 @@ const netpolTask = (domain, weight) => ({
 
 const ingressTask = (domain, weight) => ({
   id: 'ingress-shop',
+  docs: [
+    { label: 'Ingress', url: 'https://kubernetes.io/docs/concepts/services-networking/ingress/' },
+    { label: 'kubectl create ingress', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_ingress/' },
+  ],
   domain,
   weight,
   brief: {
@@ -153,6 +165,10 @@ const ingressTask = (domain, weight) => ({
 
 const rollingTask = (domain, weight) => ({
   id: 'roll-image',
+  docs: [
+    { label: 'Deployments', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/' },
+    { label: 'kubectl set image', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_set/kubectl_set_image/' },
+  ],
   domain,
   weight,
   brief: {
@@ -182,6 +198,10 @@ const rollingTask = (domain, weight) => ({
 const CKA_TASKS = [
   {
     id: 'rbac-ci',
+    docs: [
+      { label: 'RBAC', url: 'https://kubernetes.io/docs/reference/access-authn-authz/rbac/' },
+      { label: 'Service accounts', url: 'https://kubernetes.io/docs/concepts/security/service-accounts/' },
+    ],
     domain: 'arch',
     weight: 7,
     brief: {
@@ -209,6 +229,10 @@ const CKA_TASKS = [
   },
   {
     id: 'pdb-maintenance',
+    docs: [
+      { label: 'Pod disruption budgets', url: 'https://kubernetes.io/docs/concepts/workloads/pods/disruptions/' },
+      { label: 'Safely drain a node', url: 'https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/' },
+    ],
     domain: 'arch',
     weight: 6,
     brief: {
@@ -243,6 +267,10 @@ const CKA_TASKS = [
   },
   {
     id: 'etcd-backup',
+    docs: [
+      { label: 'Backing up etcd', url: 'https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/' },
+      { label: 'Operating etcd', url: 'https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/' },
+    ],
     domain: 'arch',
     weight: 6,
     brief: {
@@ -268,6 +296,10 @@ const CKA_TASKS = [
   },
   {
     id: 'upgrade-cp',
+    docs: [
+      { label: 'Upgrading kubeadm clusters', url: 'https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/' },
+      { label: 'kubeadm upgrade', url: 'https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-upgrade/' },
+    ],
     domain: 'arch',
     weight: 6,
     brief: {
@@ -300,6 +332,10 @@ const CKA_TASKS = [
   },
   {
     id: 'deploy-prod',
+    docs: [
+      { label: 'Deployments', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/' },
+      { label: 'Namespaces', url: 'https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/' },
+    ],
     domain: 'workloads',
     weight: 6,
     brief: {
@@ -326,6 +362,10 @@ const CKA_TASKS = [
   rollingTask('workloads', 4),
   {
     id: 'ssd-pod',
+    docs: [
+      { label: 'Assigning pods to nodes', url: 'https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/' },
+      { label: 'Labels and selectors', url: 'https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/' },
+    ],
     domain: 'workloads',
     weight: 5,
     brief: {
@@ -366,6 +406,10 @@ const CKA_TASKS = [
 const CKAD_TASKS = [
   {
     id: 'run-cache',
+    docs: [
+      { label: 'kubectl run', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_run/' },
+      { label: 'Pods', url: 'https://kubernetes.io/docs/concepts/workloads/pods/' },
+    ],
     domain: 'design',
     weight: 5,
     brief: {
@@ -388,6 +432,10 @@ const CKAD_TASKS = [
   },
   {
     id: 'deploy-tiered',
+    docs: [
+      { label: 'Deployments', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/' },
+      { label: 'Labels and selectors', url: 'https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/' },
+    ],
     domain: 'design',
     weight: 7,
     brief: {
@@ -412,6 +460,9 @@ const CKAD_TASKS = [
   },
   {
     id: 'pod-env',
+    docs: [
+      { label: 'Define environment variables', url: 'https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/' },
+    ],
     domain: 'design',
     weight: 5,
     brief: {
@@ -436,6 +487,10 @@ const CKAD_TASKS = [
   },
   {
     id: 'scale-web',
+    docs: [
+      { label: 'kubectl scale', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_scale/' },
+      { label: 'Deployments', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/' },
+    ],
     domain: 'deploy',
     weight: 4,
     brief: {
@@ -463,6 +518,9 @@ const CKAD_TASKS = [
   fromScenario('rollback', 'deploy', 7),
   {
     id: 'liveness-ping',
+    docs: [
+      { label: 'Probes', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/' },
+    ],
     domain: 'observe',
     weight: 6,
     brief: {
@@ -490,6 +548,10 @@ const CKAD_TASKS = [
   fromScenario('crashloop', 'observe', 7),
   {
     id: 'cm-dbhost',
+    docs: [
+      { label: 'ConfigMaps', url: 'https://kubernetes.io/docs/concepts/configuration/configmap/' },
+      { label: 'Configure a pod to use a ConfigMap', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/' },
+    ],
     domain: 'env',
     weight: 7,
     brief: {
@@ -518,6 +580,10 @@ const CKAD_TASKS = [
   },
   {
     id: 'secret-creds',
+    docs: [
+      { label: 'Secrets', url: 'https://kubernetes.io/docs/concepts/configuration/secret/' },
+      { label: 'Distribute credentials securely', url: 'https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/' },
+    ],
     domain: 'env',
     weight: 6,
     brief: {
@@ -546,6 +612,10 @@ const CKAD_TASKS = [
   },
   {
     id: 'qos-guaranteed',
+    docs: [
+      { label: 'Quality of service', url: 'https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/' },
+      { label: 'Resource management', url: 'https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/' },
+    ],
     domain: 'env',
     weight: 6,
     brief: {
@@ -571,6 +641,10 @@ const CKAD_TASKS = [
   },
   {
     id: 'sa-viewer',
+    docs: [
+      { label: 'Service accounts', url: 'https://kubernetes.io/docs/concepts/security/service-accounts/' },
+      { label: 'RBAC', url: 'https://kubernetes.io/docs/reference/access-authn-authz/rbac/' },
+    ],
     domain: 'env',
     weight: 6,
     brief: {
@@ -604,6 +678,10 @@ const CKAD_TASKS = [
 const CKS_TASKS = [
   {
     id: 'harden-api-surface',
+    docs: [
+      { label: 'Controlling access to the API', url: 'https://kubernetes.io/docs/concepts/security/controlling-access/' },
+      { label: 'Securing a cluster', url: 'https://kubernetes.io/docs/tasks/administer-cluster/securing-a-cluster/' },
+    ],
     domain: 'clusterSetup',
     weight: 5,
     brief: {
@@ -629,6 +707,10 @@ const CKS_TASKS = [
   },
   {
     id: 'harden-etcd-tls',
+    docs: [
+      { label: 'Operating etcd', url: 'https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/' },
+      { label: 'PKI certificates', url: 'https://kubernetes.io/docs/setup/best-practices/certificates/' },
+    ],
     domain: 'clusterSetup',
     weight: 5,
     brief: {
@@ -652,6 +734,9 @@ const CKS_TASKS = [
   },
   {
     id: 'rbac-minimal-monitoring',
+    docs: [
+      { label: 'RBAC', url: 'https://kubernetes.io/docs/reference/access-authn-authz/rbac/' },
+    ],
     domain: 'clusterHardening',
     weight: 7,
     brief: {
@@ -678,6 +763,10 @@ const CKS_TASKS = [
   netpolTask('clusterHardening', 8),
   {
     id: 'revoke-overbroad',
+    docs: [
+      { label: 'RBAC', url: 'https://kubernetes.io/docs/reference/access-authn-authz/rbac/' },
+      { label: 'Security checklist', url: 'https://kubernetes.io/docs/concepts/security/security-checklist/' },
+    ],
     domain: 'clusterHardening',
     weight: 5,
     brief: {
@@ -714,6 +803,10 @@ const CKS_TASKS = [
   },
   {
     id: 'kubelet-hardening',
+    docs: [
+      { label: 'Kubelet configuration', url: 'https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/' },
+      { label: 'Securing a cluster', url: 'https://kubernetes.io/docs/tasks/administer-cluster/securing-a-cluster/' },
+    ],
     domain: 'systemHardening',
     weight: 15,
     brief: {
@@ -737,6 +830,10 @@ const CKS_TASKS = [
   },
   {
     id: 'psa-migrate-payments',
+    docs: [
+      { label: 'Pod security standards', url: 'https://kubernetes.io/docs/concepts/security/pod-security-standards/' },
+      { label: 'Enforce pod security standards', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-namespace-labels/' },
+    ],
     domain: 'microserviceVuln',
     weight: 12,
     brief: {
@@ -767,6 +864,10 @@ const CKS_TASKS = [
   },
   {
     id: 'psa-baseline-batch',
+    docs: [
+      { label: 'Pod security admission', url: 'https://kubernetes.io/docs/concepts/security/pod-security-admission/' },
+      { label: 'Pod security standards', url: 'https://kubernetes.io/docs/concepts/security/pod-security-standards/' },
+    ],
     domain: 'microserviceVuln',
     weight: 8,
     brief: {
@@ -797,6 +898,10 @@ const CKS_TASKS = [
   },
   {
     id: 'supply-chain-deploy',
+    docs: [
+      { label: 'Supply chain security', url: 'https://kubernetes.io/docs/concepts/security/supply-chain-security/' },
+      { label: 'Images', url: 'https://kubernetes.io/docs/concepts/containers/images/' },
+    ],
     domain: 'supplyChain',
     weight: 12,
     createSim: createSupplyChainSim,
@@ -832,6 +937,10 @@ const CKS_TASKS = [
   },
   {
     id: 'supply-chain-reject',
+    docs: [
+      { label: 'Supply chain security', url: 'https://kubernetes.io/docs/concepts/security/supply-chain-security/' },
+      { label: 'Admission controllers', url: 'https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/' },
+    ],
     domain: 'supplyChain',
     weight: 8,
     createSim: createSupplyChainSim,
@@ -861,6 +970,10 @@ const CKS_TASKS = [
   },
   {
     id: 'audit-rbac',
+    docs: [
+      { label: 'Auditing', url: 'https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/' },
+      { label: 'RBAC', url: 'https://kubernetes.io/docs/reference/access-authn-authz/rbac/' },
+    ],
     domain: 'monitoring',
     weight: 10,
     brief: {
@@ -884,6 +997,10 @@ const CKS_TASKS = [
   },
   {
     id: 'audit-psa',
+    docs: [
+      { label: 'Auditing', url: 'https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/' },
+      { label: 'Pod security admission', url: 'https://kubernetes.io/docs/concepts/security/pod-security-admission/' },
+    ],
     domain: 'monitoring',
     weight: 10,
     brief: {
