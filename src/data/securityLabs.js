@@ -25,7 +25,7 @@ const clusterSetupLab = {
   },
   docs: [
     { label: 'CIS Kubernetes Benchmark (kube-bench)', url: 'https://github.com/aquasecurity/kube-bench' },
-    { label: 'Securing a Cluster', url: K8S_D + '/securing-a-cluster/' },
+    { label: 'Securing a Cluster', url: K8S_D + '/tasks/administer-cluster/securing-a-cluster/' },
   ],
   missions: [
     { id: 'bench-fail', desc: { en: '🏗 <code>ssh control-plane</code>, then <code>kube-bench run --targets=master</code> — see the FAILs', ko: '🏗 <code>ssh control-plane</code> 후 <code>kube-bench run --targets=master</code> — FAIL을 확인하세요' },
@@ -64,7 +64,7 @@ const clusterHardeningLab = {
     ko: "<code>shop</code>의 <code>ci</code> ServiceAccount는 <code>*</code>에 대한 <code>*</code>를 허용하는 Role에 바인딩되어 있습니다 — 사실상 네임스페이스 안의 cluster-admin입니다. 그 RoleBinding을 지우고, <code>ci</code>가 실제로 필요한 것만(<code>pods</code>에 대한 <code>get,list</code>) 부여하세요. 한편 <code>shop</code>에는 NetworkPolicy가 전혀 없어 모든 파드가 서로 접근할 수 있습니다. 기본 거부 정책을 걸고, <code>api</code>가 <code>db</code>의 5432 포트에는 여전히 접근할 수 있도록 명시적 허용을 하나 추가하세요.",
   },
   docs: [
-    { label: 'Using RBAC Authorization', url: K8S_D + '/rbac/' },
+    { label: 'Using RBAC Authorization', url: K8S_D + '/reference/access-authn-authz/rbac/' },
     { label: 'Network Policies', url: K8S_D + '/tasks/administer-cluster/declare-network-policy/' },
   ],
   setup(engine) {
@@ -121,8 +121,8 @@ const systemHardeningLab = {
     ko: "kubelet의 읽기 전용 포트(10255)는 <b>인증 없이</b> 노드/파드 정보를 제공합니다 — 전형적인 CIS 지적 사항입니다. <code>ssh worker-1</code>(어느 노드든 가능 — control-plane 전용 플래그가 아닙니다)로 접속해 <code>kube-bench run --targets=node</code>로 FAIL을 확인한 뒤, <code>harden kubelet-read-only-port off</code>로 고치고 PASS를 확인하세요.",
   },
   docs: [
-    { label: 'Kubelet authentication/authorization', url: K8S_D + '/kubelet-authentication-authorization/' },
-    { label: 'CIS Benchmark — Worker Node Security', url: CKS_D + '/kubelet-authentication-authorization/' },
+    { label: 'Kubelet authentication/authorization', url: K8S_D + '/reference/access-authn-authz/kubelet-authn-authz/' },
+    { label: 'CIS Benchmark — Worker Node Security', url: K8S_D + '/reference/access-authn-authz/kubelet-authn-authz/' },
   ],
   missions: [
     { id: 'bench-node-fail', desc: { en: '🖥 <code>ssh worker-1</code>, then <code>kube-bench run --targets=node</code> — see it FAIL', ko: '🖥 <code>ssh worker-1</code> 후 <code>kube-bench run --targets=node</code> — FAIL 확인' },
@@ -204,7 +204,7 @@ const supplyChainLab = {
   },
   docs: [
     { label: 'Trivy', url: 'https://trivy.dev/' },
-    { label: 'Sigstore / cosign', url: 'https://docs.sigstore.dev/cosign/overview/' },
+    { label: 'Sigstore / cosign', url: 'https://docs.sigstore.dev/cosign/signing/overview/' },
   ],
   starterFiles: { Dockerfile: VULN_DOCKERFILE },
   setup(engine) {
@@ -245,8 +245,8 @@ const auditLogLab = {
     ko: "실제 클러스터는 별도의 감사 로그(<code>--audit-log-path</code>)를 남기지만, 이 시뮬레이터에서는 <code>kubectl get events</code>가 그 역할을 합니다. 모든 <code>kubectl auth can-i</code> 검사는 대상에 <code>RBACAllowed</code>/<code>RBACDenied</code> 이벤트를 남기고, 모든 승인 거부는 파드에 <code>FailedCreate</code> 이벤트를 남깁니다 — '누가 무엇을 시도했는지' 사후 조사는 <code>kubectl get events</code>(또는 <code>describe</code>)로 합니다.",
   },
   docs: [
-    { label: 'Auditing', url: K8S_D + '/auditing/' },
-    { label: 'Events', url: K8S_D + '/tasks/debug/debug-cluster/audit-resource-changes/' },
+    { label: 'Auditing', url: K8S_D + '/tasks/debug/debug-cluster/audit/' },
+    { label: 'Events', url: K8S_D + '/reference/kubernetes-api/cluster-resources/event-v1/' },
   ],
   setup(engine) { engine.makeServiceAccount('auditor', 'default'); },
   missions: [

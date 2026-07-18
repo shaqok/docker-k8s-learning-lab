@@ -899,7 +899,7 @@ const CKS_TASKS = [
   {
     id: 'supply-chain-deploy',
     docs: [
-      { label: 'Supply chain security', url: 'https://kubernetes.io/docs/concepts/security/supply-chain-security/' },
+      { label: 'Cloud native security', url: 'https://kubernetes.io/docs/concepts/security/cloud-native-security/' },
       { label: 'Images', url: 'https://kubernetes.io/docs/concepts/containers/images/' },
     ],
     domain: 'supplyChain',
@@ -938,7 +938,7 @@ const CKS_TASKS = [
   {
     id: 'supply-chain-reject',
     docs: [
-      { label: 'Supply chain security', url: 'https://kubernetes.io/docs/concepts/security/supply-chain-security/' },
+      { label: 'Cloud native security', url: 'https://kubernetes.io/docs/concepts/security/cloud-native-security/' },
       { label: 'Admission controllers', url: 'https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/' },
     ],
     domain: 'supplyChain',

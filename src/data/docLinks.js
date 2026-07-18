@@ -72,7 +72,7 @@ export const DOMAIN_DOCS = {
     { label: 'Security context', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/security-context/' },
   ],
   supplyChain: [
-    { label: 'Supply chain security', url: 'https://kubernetes.io/docs/concepts/security/supply-chain-security/' },
+    { label: 'Cloud native security', url: 'https://kubernetes.io/docs/concepts/security/cloud-native-security/' },
     { label: 'Images', url: 'https://kubernetes.io/docs/concepts/containers/images/' },
   ],
   monitoring: [
