@@ -264,7 +264,7 @@ export function createEngine({ onMission = () => {} } = {}) {
       ...(securityContext ? { securityContext } : {}),
     }];
     const running = !!nodeName;
-    return put({
+    const pod = put({
       apiVersion: 'v1', kind: 'Pod',
       metadata: { name, namespace: ns, labels, creationTimestamp: Date.now(), ...(ownerReferences ? { ownerReferences } : {}) },
       spec: {
@@ -285,6 +285,10 @@ export function createEngine({ onMission = () => {} } = {}) {
       },
       sim: { owner, ownerKind, rsName, system, v2, crash, notReadyReason, born: Date.now(), app: 'ok', memMi: running ? built.reduce((s, c) => s + baseMemOf(c.image), 0) : 0, containers: {} },
     });
+    // a pod born already-running (scenario/lab seeds) skips startMainPhase, so it
+    // would otherwise have no log buffer at all — seed its startup banner here
+    if (running) for (const c of built) seedContainerLog(pod, c);
+    return pod;
   }
 
   function makeDeployment({ name, ns = 'default', labels = null, replicas = 1, image, command = null, readinessProbe = null, livenessProbe = null, resources = null, env = null, envFrom = null, volumeMounts = null, volumes = null, containerPort = null, tolerations = null, nodeSelector = null, affinity = null, containers = null, initContainers = null }) {
@@ -1762,7 +1766,7 @@ export function createEngine({ onMission = () => {} } = {}) {
     // lifecycle
     reconcile, markTerminating, flushTerminating, deletePodAndHeal, setNodeReady, deleteNamespaceContents,
     // observability
-    podLog, cpuOf,
+    podLog, rotateLog, cpuOf,
     // interactive-lab ops
     setAppState, setLeak, setLoad, setAutoSync,
     // ui
