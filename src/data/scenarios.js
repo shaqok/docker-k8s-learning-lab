@@ -45,6 +45,10 @@ const readyPodsOf = (engine, ns, name) => {
 export const SCENARIOS = [
   {
     id: 'image-typo',
+    docs: [
+      { label: 'Images', url: 'https://kubernetes.io/docs/concepts/containers/images/' },
+      { label: 'Debug running pods', url: 'https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/' },
+    ],
     difficulty: 1,
     title: { en: 'The pull that never lands', ko: '영원히 안 끝나는 pull' },
     brief: {
@@ -78,6 +82,10 @@ export const SCENARIOS = [
 
   {
     id: 'crashloop',
+    docs: [
+      { label: 'Debug running pods', url: 'https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/' },
+      { label: 'Pod lifecycle', url: 'https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/' },
+    ],
     difficulty: 2,
     title: { en: 'Dying on arrival', ko: '시작하자마자 사망' },
     brief: {
@@ -115,6 +123,10 @@ export const SCENARIOS = [
 
   {
     id: 'svc-selector',
+    docs: [
+      { label: 'Services', url: 'https://kubernetes.io/docs/concepts/services-networking/service/' },
+      { label: 'Debug services', url: 'https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/' },
+    ],
     difficulty: 2,
     title: { en: 'The service that talks to no one', ko: '아무와도 대화하지 않는 Service' },
     brief: {
@@ -147,6 +159,10 @@ export const SCENARIOS = [
 
   {
     id: 'svc-targetport',
+    docs: [
+      { label: 'Services', url: 'https://kubernetes.io/docs/concepts/services-networking/service/' },
+      { label: 'Debug services', url: 'https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/' },
+    ],
     difficulty: 2,
     title: { en: 'Right pods, wrong door', ko: '파드는 맞는데 문이 틀렸다' },
     brief: {
@@ -178,6 +194,10 @@ export const SCENARIOS = [
 
   {
     id: 'pending-capacity',
+    docs: [
+      { label: 'Resource management', url: 'https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/' },
+      { label: 'Scheduling', url: 'https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/' },
+    ],
     difficulty: 1,
     title: { en: 'Desired ≠ possible', ko: '원하는 상태 ≠ 가능한 상태' },
     brief: {
@@ -212,6 +232,10 @@ export const SCENARIOS = [
 
   {
     id: 'cordoned-node',
+    docs: [
+      { label: 'Safely drain a node', url: 'https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/' },
+      { label: 'Nodes', url: 'https://kubernetes.io/docs/concepts/architecture/nodes/' },
+    ],
     difficulty: 1,
     title: { en: 'The forgotten maintenance flag', ko: '깜빡한 점검 플래그' },
     brief: {
@@ -247,6 +271,10 @@ export const SCENARIOS = [
 
   {
     id: 'bare-pod',
+    docs: [
+      { label: 'Deployments', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/' },
+      { label: 'ReplicaSet', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/' },
+    ],
     difficulty: 1,
     title: { en: 'The pet that must become cattle', ko: '가축이 되어야 할 반려동물' },
     brief: {
@@ -276,6 +304,10 @@ export const SCENARIOS = [
 
   {
     id: 'wrong-namespace',
+    docs: [
+      { label: 'Namespaces', url: 'https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/' },
+      { label: 'DNS for services', url: 'https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/' },
+    ],
     difficulty: 2,
     title: { en: 'Lost in namespaces', ko: '네임스페이스에서 길을 잃다' },
     brief: {
@@ -309,6 +341,10 @@ export const SCENARIOS = [
 
   {
     id: 'readiness-probe',
+    docs: [
+      { label: 'Probes', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/' },
+      { label: 'Pod lifecycle', url: 'https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/' },
+    ],
     difficulty: 3,
     title: { en: 'Running, but never Ready', ko: 'Running인데 Ready는 아닌' },
     brief: {
@@ -345,6 +381,10 @@ export const SCENARIOS = [
 
   {
     id: 'taint-untolerated',
+    docs: [
+      { label: 'Taints and tolerations', url: 'https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/' },
+      { label: 'Assigning pods to nodes', url: 'https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/' },
+    ],
     difficulty: 3,
     title: { en: 'The invisible fence', ko: '보이지 않는 울타리' },
     brief: {
@@ -385,6 +425,10 @@ export const SCENARIOS = [
 
   {
     id: 'rollback',
+    docs: [
+      { label: 'Rolling back a deployment', url: 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment' },
+      { label: 'kubectl rollout', url: 'https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/' },
+    ],
     difficulty: 3,
     title: { en: 'The 14:02 deploy', ko: '14시 02분의 배포' },
     brief: {

@@ -4,6 +4,7 @@ import Rich from '../components/Rich.jsx';
 import { useSubRoute } from '../context/RouteContext.jsx';
 import Terminal from '../components/Terminal.jsx';
 import ManifestEditor from '../components/ManifestEditor.jsx';
+import DocLinks from '../components/DocLinks.jsx';
 import { ClusterView } from './K8sLab.jsx';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { useProgress } from '../context/ProgressContext.jsx';
@@ -80,6 +81,7 @@ function ScenarioRunner({ scenario, lang, onBack, onPassed }) {
         )}
         <button className="act" onClick={() => setShowSolution(true)}>🏳 {c.btnSolution}</button>
         <button className="act" onClick={reset}>↺ {c.btnReset}</button>
+        <DocLinks docs={scenario.docs} />
       </div>
 
       {results && (

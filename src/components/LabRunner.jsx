@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import Html from './Html.jsx';
 import Terminal from './Terminal.jsx';
 import ManifestEditor from './ManifestEditor.jsx';
+import DocLinks from './DocLinks.jsx';
 import { createK8sSim } from '../sims/k8sSim.js';
 import { esc } from '../sims/util.js';
 
@@ -97,12 +98,7 @@ export default function LabRunner({ lab, lang, c, Panel, done, complete, reset, 
       <div className="scen-actions">
         <button className="act" onClick={() => { reset?.(); setSolved(false); setAttempt((a) => a + 1); }}>↺ {c.btnReset}</button>
         <button className="act" onClick={revealSolution} disabled={solved}>🏳 {c.btnSolve}</button>
-        <span className="ckad-docs">
-          {c.docsTitle}:{' '}
-          {lab.docs.map((d) => (
-            <a key={d.url} href={d.url} target="_blank" rel="noreferrer">{d.label}</a>
-          ))}
-        </span>
+        <DocLinks docs={lab.docs} title={c.docsTitle} />
       </div>
 
       {solved && (

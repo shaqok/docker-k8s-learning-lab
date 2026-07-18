@@ -3,7 +3,13 @@ import { useLang } from '../i18n/LanguageContext.jsx';
 import { useProgress } from '../context/ProgressContext.jsx';
 import { tr } from '../i18n/dynamic.js';
 import { content } from '../content/index.js';
-import { ROADMAP_EN, ROADMAP_KO, MODNAMES } from '../data/roadmap.js';
+import { ROADMAP_EN, ROADMAP_KO } from '../data/roadmap.js';
+import GoalPicker from '../components/GoalPicker.jsx';
+import { moduleById, moduleLabel } from '../data/modules.js';
+
+/** Roadmap items point at a module ('m4') or at the world outside the app ('rw'). */
+const RW = { en: '🌍 real world', ko: '🌍 실전' };
+const itemLabel = (mod, lang) => (moduleById(mod) ? moduleLabel(mod, lang) : RW[lang]);
 
 const RM_TOTAL = ROADMAP_EN.reduce((s, st) => s + st.items.length, 0);
 
@@ -28,6 +34,8 @@ export default function Roadmap({ setActive }) {
     <>
       <Rich tag="h2" content={c.title} />
       <Rich tag="p" className="sub" content={c.sub} />
+
+      <GoalPicker />
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -55,7 +63,7 @@ export default function Roadmap({ setActive }) {
                   className={'where' + (mod === 'rw' ? ' rw' : '')}
                   onClick={(e) => { e.preventDefault(); if (mod !== 'rw') setActive(mod); }}
                 >
-                  {MODNAMES[lang][mod]}
+                  {itemLabel(mod, lang)}
                 </span>
               </label>
             );
