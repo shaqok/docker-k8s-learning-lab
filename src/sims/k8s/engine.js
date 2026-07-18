@@ -179,7 +179,11 @@ export function createEngine({ onMission = () => {} } = {}) {
   /** The banner a container writes on startup — pod-specific, so replicas differ. */
   function seedContainerLog(pod, c) {
     const info = K8S_IMAGES[imageRepo(c.image)];
-    for (const line of (info && info.logs) || []) podLog(pod, c.name, line);
+    const banner = (info && info.logs) || [];
+    // even a silent image (busybox, alpine) writes something — a container that
+    // is Running but whose `logs` are empty teaches the wrong lesson
+    if (!banner.length) podLog(pod, c.name, `started: ${(c.command || [imageRepo(c.image)]).join(' ')}`);
+    for (const line of banner) podLog(pod, c.name, line);
     if (info && info.port) podLog(pod, c.name, `ready: listening on ${pod.status.podIP || '0.0.0.0'}:${info.port}`);
   }
 
