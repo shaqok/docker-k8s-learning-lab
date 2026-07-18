@@ -8,6 +8,7 @@ import { POD_LABS } from './podLabs.js';
 import { STORAGE_LABS } from './storageLabs.js';
 import { PACKAGING_LABS } from './packagingLabs.js';
 import { SECURITY_LABS } from './securityLabs.js';
+import { OBS_LABS } from './obsLabs.js';
 
 /**
  * Per-exam-domain readiness — pure functions over progress state so the
@@ -46,6 +47,9 @@ export const PRACTICE_SOURCES = [
   { key: 'sec/pod-security', cka: null, ckad: null, cks: 'microserviceVuln', total: labMissions(SECURITY_LABS, 'pod-security'), done: (p) => (p.securityDone['pod-security'] || []).length },
   { key: 'sec/supply-chain', cka: null, ckad: null, cks: 'supplyChain', total: labMissions(SECURITY_LABS, 'supply-chain'), done: (p) => (p.securityDone['supply-chain'] || []).length },
   { key: 'sec/audit-log', cka: null, ckad: null, cks: 'monitoring', total: labMissions(SECURITY_LABS, 'audit-log'), done: (p) => (p.securityDone['audit-log'] || []).length },
+  { key: 'obs/logs', cka: 'troubleshooting', ckad: 'observe', cks: 'monitoring', total: labMissions(OBS_LABS, 'logs'), done: (p) => (p.obsDone.logs || []).length },
+  { key: 'obs/events', cka: 'troubleshooting', ckad: 'observe', cks: 'monitoring', total: labMissions(OBS_LABS, 'events'), done: (p) => (p.obsDone.events || []).length },
+  { key: 'obs/metrics', cka: 'troubleshooting', ckad: 'observe', cks: 'monitoring', total: labMissions(OBS_LABS, 'metrics'), done: (p) => (p.obsDone.metrics || []).length },
 ];
 
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : null);
