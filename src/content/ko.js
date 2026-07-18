@@ -3030,6 +3030,30 @@ export default {
     ]
    }
   ],
+  "gitopsDemoTitle": "🔁 해보기 — 조정 루프를 눈으로",
+  "gitopsDemoIntro": [
+   "머지로 배포하고, revert로 롤백하고 — 누군가 prod를 손으로 고치면 무슨 일이 생기는지 보세요. 에이전트(",
+   {
+    "t": "b",
+    "c": [
+     "Argo CD"
+    ]
+   },
+   " 스타일)가 매 틱마다 저장소와 클러스터를 비교합니다."
+  ],
+  "gitopsDemoBtns": [
+   "PR 머지 (v2 배포)",
+   "git revert (롤백)",
+   "kubectl edit prod (드리프트!)",
+   "지금 동기화"
+  ],
+  "gitopsDemoAuto": "자동 동기화",
+  "gitopsDemoHint0": [
+   "저장소와 클러스터가 일치합니다 — 배지가 Synced. PR을 머지해 배포해 보세요."
+  ],
+  "gitopsRepoHead": "📁 git 저장소 — 원하는 상태",
+  "gitopsAgentHead": "🤖 에이전트",
+  "gitopsClusterHead": "☸ 클러스터 — 실제 상태",
   "obsCard": [
    {
     "t": "div",

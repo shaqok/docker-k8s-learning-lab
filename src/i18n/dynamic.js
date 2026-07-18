@@ -160,6 +160,14 @@ export const KO_STR=[
  ["You'd pass most junior DevOps interviews now.","이제 주니어 DevOps 면접은 통과할 수준입니다."],
  ["Expert territory — GPUs and production await.","전문가 영역 — GPU와 프로덕션이 기다립니다."],
  ["🏆 Roadmap complete. Go run it for real.","🏆 로드맵 완주! 이제 실전에서 돌려보세요."],
+ /* m9 production widgets */
+ ["PR merged — the repo now wants <b>web:v2</b>. The cluster still runs v1 — <b>OutOfSync</b>. In GitOps the repo changes first; the cluster follows.","PR 머지 완료 — 저장소는 이제 <b>web:v2</b>를 원합니다. 클러스터는 아직 v1 — <b>OutOfSync</b>. GitOps에서는 저장소가 먼저 바뀌고 클러스터가 따라갑니다."],
+ ["git revert — the repo wants v1 again. Rollback is just another commit; the agent converges the cluster the same way it deploys.","git revert — 저장소가 다시 v1을 원합니다. 롤백도 그저 커밋 하나일 뿐, 에이전트는 배포와 똑같은 방식으로 클러스터를 수렴시킵니다."],
+ ["kubectl edit against prod: replicas 3 → 5. The cluster now disagrees with git — <b>drift</b>. Six months later nobody remembers why prod is different… except the agent, which flags it.","prod에 kubectl edit: replicas 3 → 5. 이제 클러스터가 git과 어긋났습니다 — <b>드리프트</b>. 6개월 뒤엔 아무도 prod가 왜 다른지 기억 못 하죠… 드리프트를 표시해 주는 에이전트만 빼고요."],
+ ["Synced — the agent applied exactly what's in git. Cluster == repo again.","Synced — 에이전트가 git에 있는 그대로를 적용했습니다. 다시 클러스터 == 저장소."],
+ ["⚡ auto-sync: the agent noticed the drift and reverted it by itself. Nobody runs kubectl against prod — the repo is the only door in.","⚡ 자동 동기화: 에이전트가 드리프트를 감지하고 스스로 되돌렸습니다. 아무도 prod에 kubectl을 치지 않습니다 — 저장소가 유일한 입구입니다."],
+ ["Auto-sync ON — the agent now converges every drift by itself within seconds.","자동 동기화 ON — 이제 에이전트가 모든 드리프트를 몇 초 안에 스스로 수렴시킵니다."],
+ ["Auto-sync OFF — the agent only reports drift; you press sync.","자동 동기화 OFF — 에이전트는 드리프트를 보고만 하고, 동기화는 직접 눌러야 합니다."],
 ];;
 
 export function tr(lang,h){

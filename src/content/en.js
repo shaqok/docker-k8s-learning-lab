@@ -3041,6 +3041,30 @@ export default {
     ]
    }
   ],
+  "gitopsDemoTitle": "🔁 Try it — the reconciliation loop, live",
+  "gitopsDemoIntro": [
+   "Deploy by merging, roll back by reverting — and watch what happens when someone edits prod by hand. The agent (",
+   {
+    "t": "b",
+    "c": [
+     "Argo CD"
+    ]
+   },
+   "-style) compares repo vs cluster on every tick."
+  ],
+  "gitopsDemoBtns": [
+   "merge PR (deploy v2)",
+   "git revert (roll back)",
+   "kubectl edit prod (drift!)",
+   "sync now"
+  ],
+  "gitopsDemoAuto": "auto-sync",
+  "gitopsDemoHint0": [
+   "Repo and cluster agree — the badge says Synced. Merge the PR to deploy."
+  ],
+  "gitopsRepoHead": "📁 git repo — desired",
+  "gitopsAgentHead": "🤖 agent",
+  "gitopsClusterHead": "☸ cluster — actual",
   "obsCard": [
    {
     "t": "div",
