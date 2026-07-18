@@ -3149,76 +3149,32 @@ export default {
      {
       "t": "p",
       "c": [
+       "Nobody secures a cluster with one setting. Production security is ",
        {
         "t": "b",
         "c": [
-         "RBAC"
+         "defense in depth"
         ]
        },
-       ": who can do what — Roles (verbs on resources) bound to users/ServiceAccounts. Every pod runs as a ServiceAccount; least privilege applies to software too."
-      ]
-     },
-     "\n",
-     {
-      "t": "p",
-      "c": [
-       {
-        "t": "b",
-        "c": [
-         "Pod security"
-        ]
-       },
-       ": ",
-       {
-        "t": "code",
-        "c": [
-         "securityContext"
-        ]
-       },
-       " — ",
-       {
-        "t": "code",
-        "c": [
-         "runAsNonRoot"
-        ]
-       },
-       ", drop capabilities, read-only root FS. Pod Security Standards enforce this per namespace."
-      ]
-     },
-     "\n",
-     {
-      "t": "p",
-      "c": [
-       {
-        "t": "b",
-        "c": [
-         "Network"
-        ]
-       },
-       ": by default ",
-       {
-        "t": "i",
-        "c": [
-         "every pod can talk to every pod"
-        ]
-       },
-       ". NetworkPolicies are firewalls on labels: \"db accepts traffic only from app=api\"."
-      ]
-     },
-     "\n",
-     {
-      "t": "p",
-      "c": [
-       {
-        "t": "b",
-        "c": [
-         "Supply chain"
-        ]
-       },
-       ": scan images (Trivy), pin digests, sign (cosign), minimal base images — Stage 2's distroless habit pays off here."
+       ": four independent layers an attacker would have to beat in turn. Click each layer to see what it guards — and the one command that turns it on."
       ]
      },
      "\n"
+    ]
+   }
+  ],
+  "secLayerLabels": [
+   "1 · RBAC — who can call the API",
+   "2 · Pod security — what a pod may do",
+   "3 · NetworkPolicy — who talks to whom",
+   "4 · Supply chain — what code gets in"
+  ],
+  "secEmpty": [
+   {
+    "t": "p",
+    "cls": "empty",
+    "c": [
+     "← Click a layer. Top = the people and software calling the API; bottom = the code you ship. An attacker has to get through all four."
     ]
    }
   ],
