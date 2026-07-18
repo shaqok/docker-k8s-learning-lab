@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react';
+import { review } from '../data/leitner.js';
 
 /** Mission progress for both labs + roadmap checklist (persisted). */
 const ProgressContext = createContext(null);
@@ -54,6 +55,18 @@ export function ProgressProvider({ children }) {
   });
   const [examResults, setExamResults] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dk8sexam') || '[]'); } catch { return []; }
+  });
+  /** Reading modules have no missions, so "opened it" is their completion signal. */
+  const [visited, setVisited] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dk8sseen') || '[]'); } catch { return []; }
+  });
+  /** Chosen learning track (tracks.js), or null until the goal picker is answered. */
+  const [goal, setGoalState] = useState(() => {
+    try { return localStorage.getItem('dk8sgoal') || null; } catch { return null; }
+  });
+  /** Leitner boxes over the quiz bank: { [questionId]: { box, due, seen, lastAt } }. */
+  const [quizDeck, setQuizDeck] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dk8sdeck') || '{}'); } catch { return {}; }
   });
 
   const completeMission = useCallback((lab, id) => {
@@ -222,6 +235,40 @@ export function ProgressProvider({ children }) {
     });
   }, []);
 
+  /**
+   * Fold one attempt's per-question outcomes into the Leitner deck.
+   * results = [{ id, correct }]. Runs alongside recordQuiz, which keeps
+   * feeding the per-domain accuracy the readiness dashboard reads.
+   */
+  const recordCards = useCallback((results) => {
+    if (!results || !results.length) return;
+    setQuizDeck((prev) => {
+      const now = Date.now();
+      const next = { ...prev };
+      for (const { id, correct } of results) next[id] = review(next[id], correct, now);
+      try { localStorage.setItem('dk8sdeck', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const markVisited = useCallback((id) => {
+    setVisited((prev) => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      try { localStorage.setItem('dk8sseen', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  /** Pass null to clear the chosen track and see every module again. */
+  const setGoal = useCallback((id) => {
+    setGoalState(id);
+    try {
+      if (id) localStorage.setItem('dk8sgoal', id);
+      else localStorage.removeItem('dk8sgoal');
+    } catch { /* ignore */ }
+  }, []);
+
   const recordExamResult = useCallback((result) => {
     setExamResults((prev) => {
       const next = [...prev, result];
@@ -239,7 +286,7 @@ export function ProgressProvider({ children }) {
   }, []);
 
   return (
-    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, securityDone, completeSecurityMission, resetSecurityLab, obsDone, completeObsMission, resetObsLab, incidentResults, recordIncident, quizStats, recordQuiz, examResults, recordExamResult }}>
+    <ProgressContext.Provider value={{ dockerDone, k8sDone, completeMission, roadmap, setRoadmapItem, scenariosDone, completeScenario, ckadDone, completeCkadMission, resetCkadLab, ckaDone, completeCkaMission, resetCkaLab, netDone, completeNetMission, resetNetLab, opsDone, completeOpsMission, resetOpsLab, dockerDrillDone, completeDockerMission, resetDockerLab, podDone, completePodMission, resetPodLab, storageDone, completeStorageMission, resetStorageLab, packagingDone, completePackagingMission, resetPackagingLab, securityDone, completeSecurityMission, resetSecurityLab, obsDone, completeObsMission, resetObsLab, incidentResults, recordIncident, quizStats, recordQuiz, examResults, recordExamResult, visited, markVisited, goal, setGoal, quizDeck, recordCards }}>
       {children}
     </ProgressContext.Provider>
   );

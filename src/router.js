@@ -4,30 +4,10 @@
  * Pure helpers — the React side lives in context/RouteContext.jsx.
  */
 
-export const MODULE_SLUGS = {
-  m0: 'roadmap',
-  m1: 'containers',
-  m2: 'docker-lab',
-  m7: 'docker-depth',
-  m3: 'k8s-concepts',
-  m4: 'k8s-lab',
-  m8: 'operator-toolkit',
-  m9: 'production',
-  m5: 'gpu',
-  m10: 'troubleshooting',
-  m11: 'ckad-drills',
-  m12: 'cka-drills',
-  m13: 'net-drills',
-  m14: 'ops-drills',
-  m16: 'docker-drills',
-  m17: 'pod-labs',
-  m18: 'storage-labs',
-  m19: 'packaging-gitops',
-  m20: 'security-drills',
-  m21: 'observability',
-  m15: 'exam-room',
-  m6: 'quiz',
-};
+import { MODULES } from './data/modules.js';
+
+/** id → slug, derived from the module registry (data/modules.js). */
+export const MODULE_SLUGS = Object.fromEntries(MODULES.map((m) => [m.id, m.slug]));
 
 export const DEFAULT_MODULE = 'm0';
 
