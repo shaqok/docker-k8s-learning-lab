@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ \"$(git branch --show-current 2>/dev/null)\" = \"main\" ]; then echo 'Direct edits to main are forbidden! Use a feature/bugfix branch or worktree.' >&2; exit 2; fi"
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty'); repo=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; [ -n \"$repo\" ] || exit 0; case \"$f\" in \"$repo\"/*) if [ \"$(git branch --show-current 2>/dev/null)\" = \"main\" ]; then echo 'Direct edits to main are forbidden! Use a feature/bugfix branch or worktree.' >&2; exit 2; fi;; esac"
           }
         ]
       }

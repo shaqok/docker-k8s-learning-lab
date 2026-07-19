@@ -1548,522 +1548,7 @@ export default {
  "m7": {
   "title": "Docker 깊이 보기",
   "sub": "2단계: \"컨테이너 돌릴 줄 알아요\"와 \"컨테이너로 배포합니다\"를 가르는 것들.",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "레이어 캐시 — 명령 순서가 곧 성능"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ❌ 코드만 고쳐도 pip install이 다시 돈다"
-             ]
-            },
-            "\nCOPY . .\nRUN pip install -r requirements.txt"
-           ]
-          },
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ✅ requirements.txt가 바뀔 때까지 deps 레이어 캐시 유지"
-             ]
-            },
-            "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            "Docker는 해당 명령과 ",
-            {
-             "t": "i",
-             "c": [
-              "그 이전 전부"
-             ]
-            },
-            "가 안 바뀌었을 때만 캐시 레이어를 재사용합니다. 느리고 잘 안 바뀌는 단계(의존성)를 자주 바뀌는 단계(내 코드) 앞에 두세요. ML 이미지에서는 이게 4초 재빌드와 25분 재빌드의 차이입니다."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "데이터 — 쓰기 레이어는 컨테이너와 함께 죽는다"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "컨테이너가 자기 파일시스템에 쓴 것은 ",
-        {
-         "t": "code",
-         "c": [
-          "docker rm"
-         ]
-        },
-        "과 함께 삭제됩니다. 영속 데이터에는 마운트가 필요합니다:"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": []
-          },
-          {
-           "t": "th",
-           "c": [
-            "볼륨"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "바인드 마운트"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "문법"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v pgdata:/var/lib/postgresql/data"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v ./src:/app/src"
-             ]
-            }
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "위치"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Docker가 관리하는 호스트 영역"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "내가 지정한 호스트 폴더 그대로"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "적합한 곳"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "데이터베이스, 프로덕션 전반"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "개발 중 코드 실시간 편집"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "같은 아이디어가 쿠버네티스에서 PersistentVolume(4단계)으로 다시 등장합니다 — 파드도 컨테이너만큼 일회용이라, 상태는 항상 바깥에 삽니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "네트워킹 — 컨테이너는 이름으로 서로를 찾는다"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# api는 이제 \"db:5432\"로 접근 — Docker DNS가 컨테이너 이름을 해석"
-         ]
-        }
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "사용자 정의 네트워크"
-         ]
-        },
-        "에서 컨테이너는 컨테이너 이름으로 서로를 해석합니다 — 설정에 IP가 필요 없습니다. ",
-        {
-         "t": "code",
-         "c": [
-          "-p 호스트:컨테이너"
-         ]
-        },
-        "는 ",
-        {
-         "t": "i",
-         "c": [
-          "바깥에서"
-         ]
-        },
-        "(내 브라우저) 컨테이너에 닿을 때만 필요합니다. 컨테이너끼리는 절대 필요 없습니다."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "쿠버네티스는 이걸 더 밀어붙입니다: 모든 파드가 자기 IP를 갖고, Service가 클러스터 전체 고정 DNS 이름(",
-        {
-         "t": "code",
-         "c": [
-          "web.default.svc.cluster.local"
-         ]
-        },
-        ")을 줍니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Docker Compose — 스택 전체를 파일 하나에"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "pre",
-         "cls": "code",
-         "c": [
-          {
-           "t": "span",
-           "cls": "cm",
-           "c": [
-            "# compose.yaml — 웹 + 캐시 + DB"
-           ]
-          },
-          "\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "services"
-           ]
-          },
-          ":\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "web"
-           ]
-          },
-          ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "cache"
-           ]
-          },
-          ":\n    image: redis:7\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "db"
-           ]
-          },
-          ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "volumes"
-           ]
-          },
-          ":\n  pgdata:"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "docker compose up -d"
-             ]
-            },
-            " 하나로 전부 시작(서로 네트워크로 연결, 서비스 이름으로 DNS), ",
-            {
-             "t": "code",
-             "c": [
-              "docker compose down"
-             ]
-            },
-            "으로 전부 제거. git에 든 파일 하나 = 팀 전체의 재현 가능한 개발 환경."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "cls": "hint",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "쿠버네티스로 가는 다리입니다:"
-             ]
-            },
-            " Compose는 머신 한 대를 위한 선언적 원하는 상태. K8s 매니페스트는 같은 아이디어를 함대에 적용한 것 — 거기에 조정 루프까지. 이 파일을 읽을 수 있다면 4단계의 YAML도 낯설지 않을 겁니다."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "레지스트리, 태그 & 다이제스트"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker tag myapp ",
-        {
-         "t": "span",
-         "cls": "g",
-         "c": [
-          "ghcr.io/daniel/myapp:1.4.2"
-         ]
-        },
-        "   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# 레지스트리/네임스페이스/저장소:태그"
-         ]
-        },
-        "\ndocker push ghcr.io/daniel/myapp:1.4.2"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "code",
-         "c": [
-          ":latest"
-         ]
-        },
-        "는 그저 기본 태그 이름일 뿐 — 자동으로 최신이 ",
-        {
-         "t": "b",
-         "c": [
-          "아니고"
-         ]
-        },
-        ", 게다가 ",
-        {
-         "t": "i",
-         "c": [
-          "움직입니다"
-         ]
-        },
-        ": 같은 태그가 내일은 다른 바이트를 가리킬 수 있습니다. 프로덕션은 버전(",
-        {
-         "t": "code",
-         "c": [
-          ":1.4.2"
-         ]
-        },
-        ")이나 불변 다이제스트(",
-        {
-         "t": "code",
-         "c": [
-          "@sha256:…"
-         ]
-        },
-        ")를 고정합니다. 쿠버네티스도 태그로 이미지를 당깁니다 — 움직이는 태그 + ",
-        {
-         "t": "code",
-         "c": [
-          "imagePullPolicy"
-         ]
-        },
-        " 혼동은 고전적인 장애 원인입니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
-  ],
+  "msTitle": "멀티 스테이지 빌드 — 툴체인 말고 앱만 배포",
   "msPre": [
    {
     "t": "pre",
@@ -2121,1185 +1606,1853 @@ export default {
    }
   ],
   "msHint": "마지막 스테이지만 이미지가 됩니다. 빌드 도구, 소스, 캐시는 남겨두고요. 작은 이미지 = 빠른 pull, 빠른 파드 시작, 작은 공격 표면.",
-  "msTitle": "멀티 스테이지 빌드 — 툴체인 말고 앱만 배포"
+  "cacheDemoTitle": "⚡ 해보기 — 캐시 버스트 체감하기",
+  "cacheDemoIntro": [
+   "같은 앱, 두 가지 Dockerfile. 소스 파일을 수정하고 다시 빌드해서 캐시가 어디서 깨지는지 보세요 — 그다음 순서를 뒤집고 같은 수정으로 다시 빌드해 보세요."
+  ],
+  "cacheDemoBtns": [
+   "✎ app.js 수정",
+   "▶ docker build"
+  ],
+  "cacheDemoOrder": "의존성 우선 순서 (npm ci 전에 package.json만 COPY)",
+  "cacheDemoHint0": [
+   "한 번 빌드하고, app.js를 수정하고, 다시 빌드해 보세요 — 그다음 순서를 뒤집고 같은 수정을 반복."
+  ],
+  "cacheTimeLabel": "빌드 시간",
+  "cacheCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "레이어 캐시 — 명령 순서가 곧 성능"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ❌ 코드만 고쳐도 pip install이 다시 돈다"
+            ]
+           },
+           "\nCOPY . .\nRUN pip install -r requirements.txt"
+          ]
+         },
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ✅ requirements.txt가 바뀔 때까지 deps 레이어 캐시 유지"
+            ]
+           },
+           "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           "Docker는 해당 명령과 ",
+           {
+            "t": "i",
+            "c": [
+             "그 이전 전부"
+            ]
+           },
+           "가 안 바뀌었을 때만 캐시 레이어를 재사용합니다. 느리고 잘 안 바뀌는 단계(의존성)를 자주 바뀌는 단계(내 코드) 앞에 두세요. ML 이미지에서는 이게 4초 재빌드와 25분 재빌드의 차이입니다."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "dataCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "데이터 — 쓰기 레이어는 컨테이너와 함께 죽는다"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "컨테이너가 자기 파일시스템에 쓴 것은 ",
+       {
+        "t": "code",
+        "c": [
+         "docker rm"
+        ]
+       },
+       "과 함께 삭제됩니다. 영속 데이터에는 마운트가 필요합니다:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": []
+         },
+         {
+          "t": "th",
+          "c": [
+           "볼륨"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "바인드 마운트"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "문법"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v pgdata:/var/lib/postgresql/data"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v ./src:/app/src"
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "위치"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Docker가 관리하는 호스트 영역"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "내가 지정한 호스트 폴더 그대로"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "적합한 곳"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "데이터베이스, 프로덕션 전반"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "개발 중 코드 실시간 편집"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "같은 아이디어가 쿠버네티스에서 PersistentVolume(4단계)으로 다시 등장합니다 — 파드도 컨테이너만큼 일회용이라, 상태는 항상 바깥에 삽니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "netCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "네트워킹 — 컨테이너는 이름으로 서로를 찾는다"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# api는 이제 \"db:5432\"로 접근 — Docker DNS가 컨테이너 이름을 해석"
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "사용자 정의 네트워크"
+        ]
+       },
+       "에서 컨테이너는 컨테이너 이름으로 서로를 해석합니다 — 설정에 IP가 필요 없습니다. ",
+       {
+        "t": "code",
+        "c": [
+         "-p 호스트:컨테이너"
+        ]
+       },
+       "는 ",
+       {
+        "t": "i",
+        "c": [
+         "바깥에서"
+        ]
+       },
+       "(내 브라우저) 컨테이너에 닿을 때만 필요합니다. 컨테이너끼리는 절대 필요 없습니다."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "쿠버네티스는 이걸 더 밀어붙입니다: 모든 파드가 자기 IP를 갖고, Service가 클러스터 전체 고정 DNS 이름(",
+       {
+        "t": "code",
+        "c": [
+         "web.default.svc.cluster.local"
+        ]
+       },
+       ")을 줍니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "composeCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Docker Compose — 스택 전체를 파일 하나에"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "pre",
+        "cls": "code",
+        "c": [
+         {
+          "t": "span",
+          "cls": "cm",
+          "c": [
+           "# compose.yaml — 웹 + 캐시 + DB"
+          ]
+         },
+         "\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "services"
+          ]
+         },
+         ":\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "web"
+          ]
+         },
+         ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "cache"
+          ]
+         },
+         ":\n    image: redis:7\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "db"
+          ]
+         },
+         ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "volumes"
+          ]
+         },
+         ":\n  pgdata:"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "docker compose up -d"
+            ]
+           },
+           " 하나로 전부 시작(서로 네트워크로 연결, 서비스 이름으로 DNS), ",
+           {
+            "t": "code",
+            "c": [
+             "docker compose down"
+            ]
+           },
+           "으로 전부 제거. git에 든 파일 하나 = 팀 전체의 재현 가능한 개발 환경."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "cls": "hint",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "쿠버네티스로 가는 다리입니다:"
+            ]
+           },
+           " Compose는 머신 한 대를 위한 선언적 원하는 상태. K8s 매니페스트는 같은 아이디어를 함대에 적용한 것 — 거기에 조정 루프까지. 이 파일을 읽을 수 있다면 4단계의 YAML도 낯설지 않을 겁니다."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "registryCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "레지스트리, 태그 & 다이제스트"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker tag myapp ",
+       {
+        "t": "span",
+        "cls": "g",
+        "c": [
+         "ghcr.io/daniel/myapp:1.4.2"
+        ]
+       },
+       "   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# 레지스트리/네임스페이스/저장소:태그"
+        ]
+       },
+       "\ndocker push ghcr.io/daniel/myapp:1.4.2"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "code",
+        "c": [
+         ":latest"
+        ]
+       },
+       "는 그저 기본 태그 이름일 뿐 — 자동으로 최신이 ",
+       {
+        "t": "b",
+        "c": [
+         "아니고"
+        ]
+       },
+       ", 게다가 ",
+       {
+        "t": "i",
+        "c": [
+         "움직입니다"
+        ]
+       },
+       ": 같은 태그가 내일은 다른 바이트를 가리킬 수 있습니다. 프로덕션은 버전(",
+       {
+        "t": "code",
+        "c": [
+         ":1.4.2"
+        ]
+       },
+       ")이나 불변 다이제스트(",
+       {
+        "t": "code",
+        "c": [
+         "@sha256:…"
+        ]
+       },
+       ")를 고정합니다. 쿠버네티스도 태그로 이미지를 당깁니다 — 움직이는 태그 + ",
+       {
+        "t": "code",
+        "c": [
+         "imagePullPolicy"
+        ]
+       },
+       " 혼동은 고전적인 장애 원인입니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ]
  },
  "m8": {
   "title": "쿠버네티스 운영 툴킷",
   "sub": "4단계: 실습에서는 명령형 커맨드를 배웠습니다. 실제 클러스터는 선언적 YAML과 아래 기능들로 돌아갑니다.",
-  "_ncards": 8,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "선언적 YAML — 진짜 워크플로"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "pre",
-         "cls": "code",
-         "c": [
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "apiVersion"
-           ]
-          },
-          ": apps/v1\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "kind"
-           ]
-          },
-          ": Deployment\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "metadata"
-           ]
-          },
-          ":\n  name: web\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "spec"
-           ]
-          },
-          ":\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  template:\n    metadata:\n      labels: {app: web}          ",
-          {
-           "t": "span",
-           "cls": "cm",
-           "c": [
-            "# 레이블이 모든 걸 이어붙이는 접착제"
-           ]
-          },
-          "\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.27\n        ports: [{containerPort: 80}]\n        resources:\n          requests: {cpu: 100m, memory: 128Mi}\n          limits: {memory: 256Mi}\n        readinessProbe:\n          httpGet: {path: /, port: 80}"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "kubectl apply -f deploy.yaml"
-             ]
-            },
-            " — 파일 자체가 원하는 상태입니다. 몇 번을 적용해도 안전(멱등)합니다. 파일은 git에 삽니다 → 리뷰, 롤백, 감사가 공짜."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "kubectl create deployment …"
-             ]
-            },
-            "(실습 방식)는 학습과 빠른 실험용으로 좋고, 팀은 ",
-            {
-             "t": "code",
-             "c": [
-              "apply"
-             ]
-            },
-            "로 일합니다. ",
-            {
-             "t": "code",
-             "c": [
-              "kubectl get deploy web -o yaml"
-             ]
-            },
-            "은 살아있는 오브젝트를 YAML로 보여줍니다 — 스키마를 익히는 최고의 방법."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "cls": "hint",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "레이블 & 셀렉터"
-             ]
-            },
-            "가 접착제입니다: Deployment는 ",
-            {
-             "t": "code",
-             "c": [
-              "matchLabels"
-             ]
-            },
-            "로 자기 파드를 찾고, Service도 같은 레이블로 라우팅하며, ",
-            {
-             "t": "code",
-             "c": [
-              "kubectl get pods -l app=web"
-             ]
-            },
-            "으로 필터링합니다. ",
-            {
-             "t": "b",
-             "c": [
-              "네임스페이스"
-             ]
-            },
-            "는 이 모든 걸 팀/환경별로 구획합니다."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "ConfigMap & Secret — 설정을 이미지 밖으로"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "dev와 prod에서 같은 이미지, 다른 건 주입되는 설정뿐. ",
-        {
-         "t": "b",
-         "c": [
-          "ConfigMap"
-         ]
-        },
-        " = 일반 설정, ",
-        {
-         "t": "b",
-         "c": [
-          "Secret"
-         ]
-        },
-        " = 자격 증명. 둘 다 환경 변수나 마운트된 파일로 들어옵니다:"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "env:\n- name: DB_HOST\n  valueFrom:\n    configMapKeyRef: {name: app-config, key: db_host}\n- name: DB_PASSWORD\n  valueFrom:\n    secretKeyRef: {name: db-creds, key: password}"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "면접 단골 함정: Secret은 ",
-        {
-         "t": "b",
-         "c": [
-          "base64 인코딩일 뿐, 암호화가 아닙니다"
-         ]
-        },
-        ". 진짜 보호 = etcd 저장 시 암호화, RBAC 제한(5단계), 또는 외부 관리자(Vault, 클라우드 시크릿 스토어)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "헬스 프로브 — K8s가 앱의 진짜 상태를 아는 방법"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": [
-            "프로브"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "질문"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "실패 시"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "liveness"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "살아는 있나?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "kubelet이 컨테이너를 ",
-            {
-             "t": "b",
-             "c": [
-              "재시작"
-             ]
-            }
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "readiness"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "지금 트래픽 받을 수 있나?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "파드가 ",
-            {
-             "t": "b",
-             "c": [
-              "Service 엔드포인트에서 제외"
-             ]
-            },
-            " — 재시작 아님"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "startup"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "아직 부팅 중?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "나머지 두 프로브를 보류 (느리게 뜨는 앱, 큰 모델)"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "readiness 프로브가 없으면 롤링 업데이트가 준비 안 된 파드로 트래픽을 보냅니다 — 배포마다 잠깐씩 502. 있으면 롤아웃이 기다립니다. 추가할 수 있는 YAML 중 가성비 최고입니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "자원, limits & QoS"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "requests"
-         ]
-        },
-        " = 스케줄러가 예약하는 양(파드 배치를 결정하는 바로 그 숫자 — GPU에서 본 것과 같은 메커니즘). ",
-        {
-         "t": "b",
-         "c": [
-          "limits"
-         ]
-        },
-        " = cgroup 상한: CPU 초과 → 스로틀링; 메모리 초과 → ",
-        {
-         "t": "b",
-         "c": [
-          "OOMKilled"
-         ]
-        },
-        "(악명 높은 exit code 137)."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "QoS 클래스는 설정에서 따라옵니다: ",
-        {
-         "t": "b",
-         "c": [
-          "Guaranteed"
-         ]
-        },
-        "(requests = limits)는 마지막에 축출, ",
-        {
-         "t": "b",
-         "c": [
-          "Burstable"
-         ]
-        },
-        "은 중간, ",
-        {
-         "t": "b",
-         "c": [
-          "BestEffort"
-         ]
-        },
-        "(아무것도 미설정)는 노드가 부족할 때 제일 먼저 축출. 프로덕션 규칙: requests는 항상, memory limits는 설정, CPU limits는 두 번 생각."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "오토스케일링 — 서로 다른 다이얼 세 개"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "HPA"
-         ]
-        },
-        "(Horizontal Pod Autoscaler): 부하가 오르면 파드 추가. ",
-        {
-         "t": "code",
-         "c": [
-          "목표 = ceil(현재 × 사용률/목표치)"
-         ]
-        },
-        " — 예: 파드 3개가 CPU 90%, 목표 60% → 5개. ",
-        {
-         "t": "b",
-         "c": [
-          "VPA"
-         ]
-        },
-        ": 같은 파드의 requests 크기 조정. ",
-        {
-         "t": "b",
-         "c": [
-          "Cluster Autoscaler"
-         ]
-        },
-        ": ",
-        {
-         "t": "i",
-         "c": [
-          "노드"
-         ]
-        },
-        " 추가 — 실습에서 만든 바로 그 ",
-        {
-         "t": "b",
-         "c": [
-          "Pending"
-         ]
-        },
-        " 파드를 감시해 머신을 삽니다(GPU 노드 풀도 이렇게 늘어납니다)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "스토리지 — PV, PVC, StatefulSet"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "파드는 ",
-        {
-         "t": "b",
-         "c": [
-          "PersistentVolumeClaim"
-         ]
-        },
-        "(\"10Gi, 빠른 걸로\")으로 스토리지를 요청 → ",
-        {
-         "t": "b",
-         "c": [
-          "StorageClass"
-         ]
-        },
-        "가 실제 디스크(EBS, PD, Ceph…)를 ",
-        {
-         "t": "b",
-         "c": [
-          "PersistentVolume"
-         ]
-        },
-        "으로 프로비저닝 → 파드에 마운트되고 ",
-        {
-         "t": "b",
-         "c": [
-          "파드가 삭제돼도 살아남습니다"
-         ]
-        },
-        ". 요청/공급 분리 덕에 앱 YAML은 클라우드 중립적으로 유지됩니다."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "StatefulSet"
-         ]
-        },
-        " = 상태 있는 앱을 위한 Deployment: 고정된 이름(",
-        {
-         "t": "code",
-         "c": [
-          "db-0"
-         ]
-        },
-        ", ",
-        {
-         "t": "code",
-         "c": [
-          "db-1"
-         ]
-        },
-        "), 각자의 PVC, 순서 있는 시작/종료. 데이터베이스, Kafka, 정체성이 필요한 모든 것. ML 학습의 모델 체크포인트도 같은 PVC 메커니즘을 씁니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "트래픽 들이기 — Service 타입 & Ingress"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": [
-            "타입"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "도달 범위"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "용도"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "ClusterIP"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "클러스터 내부만"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "기본값 — 서비스 간 통신"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "NodePort"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "모든 노드 IP의 :30000-32767"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "빠른 데모, 베어메탈"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "LoadBalancer"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "공인 IP를 가진 클라우드 LB"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "프로덕션 입구, 서비스당 LB 하나($)"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Ingress"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "LB 하나로 호스트/경로 HTTP 라우팅"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "api.example.com → api-svc"
-             ]
-            },
-            ", TLS 종료 — 보통의 정답"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Deployment 너머"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Job"
-         ]
-        },
-        " — 완료까지 실행(배치, 마이그레이션, ML 학습 1회). ",
-        {
-         "t": "b",
-         "c": [
-          "CronJob"
-         ]
-        },
-        " — 스케줄 위의 Job. ",
-        {
-         "t": "b",
-         "c": [
-          "DaemonSet"
-         ]
-        },
-        " — 노드마다 정확히 파드 하나: 로그 수집기, 모니터링 에이전트… 그리고 6단계의 NVIDIA device plugin — 이제 그게 어떤 종류의 오브젝트인지 아시겠죠."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
+  "yamlCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "선언적 YAML — 진짜 워크플로"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "pre",
+        "cls": "code",
+        "c": [
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "apiVersion"
+          ]
+         },
+         ": apps/v1\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "kind"
+          ]
+         },
+         ": Deployment\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "metadata"
+          ]
+         },
+         ":\n  name: web\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "spec"
+          ]
+         },
+         ":\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  template:\n    metadata:\n      labels: {app: web}          ",
+         {
+          "t": "span",
+          "cls": "cm",
+          "c": [
+           "# 레이블이 모든 걸 이어붙이는 접착제"
+          ]
+         },
+         "\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.27\n        ports: [{containerPort: 80}]\n        resources:\n          requests: {cpu: 100m, memory: 128Mi}\n          limits: {memory: 256Mi}\n        readinessProbe:\n          httpGet: {path: /, port: 80}"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "kubectl apply -f deploy.yaml"
+            ]
+           },
+           " — 파일 자체가 원하는 상태입니다. 몇 번을 적용해도 안전(멱등)합니다. 파일은 git에 삽니다 → 리뷰, 롤백, 감사가 공짜."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "kubectl create deployment …"
+            ]
+           },
+           "(실습 방식)는 학습과 빠른 실험용으로 좋고, 팀은 ",
+           {
+            "t": "code",
+            "c": [
+             "apply"
+            ]
+           },
+           "로 일합니다. ",
+           {
+            "t": "code",
+            "c": [
+             "kubectl get deploy web -o yaml"
+            ]
+           },
+           "은 살아있는 오브젝트를 YAML로 보여줍니다 — 스키마를 익히는 최고의 방법."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "cls": "hint",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "레이블 & 셀렉터"
+            ]
+           },
+           "가 접착제입니다: Deployment는 ",
+           {
+            "t": "code",
+            "c": [
+             "matchLabels"
+            ]
+           },
+           "로 자기 파드를 찾고, Service도 같은 레이블로 라우팅하며, ",
+           {
+            "t": "code",
+            "c": [
+             "kubectl get pods -l app=web"
+            ]
+           },
+           "으로 필터링합니다. ",
+           {
+            "t": "b",
+            "c": [
+             "네임스페이스"
+            ]
+           },
+           "는 이 모든 걸 팀/환경별로 구획합니다."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "configCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "ConfigMap & Secret — 설정을 이미지 밖으로"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "dev와 prod에서 같은 이미지, 다른 건 주입되는 설정뿐. ",
+       {
+        "t": "b",
+        "c": [
+         "ConfigMap"
+        ]
+       },
+       " = 일반 설정, ",
+       {
+        "t": "b",
+        "c": [
+         "Secret"
+        ]
+       },
+       " = 자격 증명. 둘 다 환경 변수나 마운트된 파일로 들어옵니다:"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "env:\n- name: DB_HOST\n  valueFrom:\n    configMapKeyRef: {name: app-config, key: db_host}\n- name: DB_PASSWORD\n  valueFrom:\n    secretKeyRef: {name: db-creds, key: password}"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "면접 단골 함정: Secret은 ",
+       {
+        "t": "b",
+        "c": [
+         "base64 인코딩일 뿐, 암호화가 아닙니다"
+        ]
+       },
+       ". 진짜 보호 = etcd 저장 시 암호화, RBAC 제한(5단계), 또는 외부 관리자(Vault, 클라우드 시크릿 스토어)."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "probesCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "헬스 프로브 — K8s가 앱의 진짜 상태를 아는 방법"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": [
+           "프로브"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "질문"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "실패 시"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "liveness"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "살아는 있나?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "kubelet이 컨테이너를 ",
+           {
+            "t": "b",
+            "c": [
+             "재시작"
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "readiness"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "지금 트래픽 받을 수 있나?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "파드가 ",
+           {
+            "t": "b",
+            "c": [
+             "Service 엔드포인트에서 제외"
+            ]
+           },
+           " — 재시작 아님"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "startup"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "아직 부팅 중?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "나머지 두 프로브를 보류 (느리게 뜨는 앱, 큰 모델)"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "readiness 프로브가 없으면 롤링 업데이트가 준비 안 된 파드로 트래픽을 보냅니다 — 배포마다 잠깐씩 502. 있으면 롤아웃이 기다립니다. 추가할 수 있는 YAML 중 가성비 최고입니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "qosCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "자원, limits & QoS"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "requests"
+        ]
+       },
+       " = 스케줄러가 예약하는 양(파드 배치를 결정하는 바로 그 숫자 — GPU에서 본 것과 같은 메커니즘). ",
+       {
+        "t": "b",
+        "c": [
+         "limits"
+        ]
+       },
+       " = cgroup 상한: CPU 초과 → 스로틀링; 메모리 초과 → ",
+       {
+        "t": "b",
+        "c": [
+         "OOMKilled"
+        ]
+       },
+       "(악명 높은 exit code 137)."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "QoS 클래스는 설정에서 따라옵니다: ",
+       {
+        "t": "b",
+        "c": [
+         "Guaranteed"
+        ]
+       },
+       "(requests = limits)는 마지막에 축출, ",
+       {
+        "t": "b",
+        "c": [
+         "Burstable"
+        ]
+       },
+       "은 중간, ",
+       {
+        "t": "b",
+        "c": [
+         "BestEffort"
+        ]
+       },
+       "(아무것도 미설정)는 노드가 부족할 때 제일 먼저 축출. 프로덕션 규칙: requests는 항상, memory limits는 설정, CPU limits는 두 번 생각."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "probeDemoTitle": "🩺 해보기 — 앱을 고장 내고 프로브별 반응 보기",
+  "probeDemoIntro": [
+   "앱 하나, 프로브 셋, 전혀 다른 결과 셋. 드릴에서 가장 많이 오진하는 구분: ",
+   {
+    "t": "b",
+    "c": [
+     "readiness는 트래픽을 막고, liveness는 재시작하고, startup은 둘을 보류시킵니다"
+    ]
+   },
+   "."
+  ],
+  "probeDemoBtns": [
+   "건강한 앱",
+   "/ready가 503",
+   "/healthz 멈춤 (데드락)",
+   "느린 시작 (콜드 JVM)"
+  ],
+  "probeDemoHint0": [
+   "전부 초록불. 이제 고장 내 보세요: /ready 503을 눌러서 무엇이 일어나지 않는지 확인해 보세요."
+  ],
+  "probeRestartsLabel": "재시작",
+  "probeSvcHead": "Service 엔드포인트",
+  "qosDemoTitle": "⚖️ 해보기 — requests & limits 조절하기",
+  "qosDemoIntro": [
+   "컨테이너 하나의 requests와 limits를 골라 ",
+   {
+    "t": "b",
+    "c": [
+     "QoS 클래스"
+    ]
+   },
+   "가 어떻게 바뀌는지 보세요 — API 서버가 적용하는 규칙 그대로 계산됩니다. 아래 스트립은 노드 메모리가 바닥났을 때 누가 먼저 죽는지 보여줍니다."
+  ],
+  "qosEvictHead": "노드 메모리 압박 시 축출 순서",
+  "qosSlotLabels": [
+   "먼저 축출",
+   "그다음 축출",
+   "마지막 축출"
+  ],
+  "qosYourPod": "← 내 파드",
+  "scaleCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "오토스케일링 — 서로 다른 다이얼 세 개"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "오토스케일러 셋, 다이얼 셋 — 헷갈리기 딱 좋은 면접 단골입니다. 머신을 늘리는 건 셋 중 하나뿐입니다."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["다이얼"] },
+         { "t": "th", "c": ["무엇을 늘리나"] },
+         { "t": "th", "c": ["신호"] },
+         { "t": "th", "c": ["기억할 것"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["HPA"] }] },
+         { "t": "td", "c": ["파드 개수"] },
+         { "t": "td", "c": ["CPU/메모리 vs 목표치"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["목표 = ceil(현재 × 사용률/목표치)"] }, " — 3개가 90%, 목표 60% → 5개"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["VPA"] }] },
+         { "t": "td", "c": ["같은 파드의 requests/limits"] },
+         { "t": "td", "c": ["시간에 걸쳐 관측한 사용량"] },
+         { "t": "td", "c": ["새 크기를 적용하려면 파드가 재시작됩니다"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["Cluster Autoscaler"] }] },
+         { "t": "td", "c": [{ "t": "i", "c": ["노드"] }] },
+         { "t": "td", "c": [{ "t": "b", "c": ["Pending"] }, " 상태로 갈 곳 없는 파드"] },
+         { "t": "td", "c": ["그 파드가 들어갈 머신을 삽니다 — GPU 노드 풀도 이렇게 늘어납니다"] }
+        ]
+       }
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "storageCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "스토리지 — PV, PVC, StatefulSet"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "스토리지는 요청과 공급을 분리합니다 — 앱 YAML은 클라우드 중립을 유지하고, 벤더별 작업은 ",
+       {
+        "t": "b",
+        "c": [
+         "StorageClass"
+        ]
+       },
+       "가 맡습니다. 오브젝트 넷, 주인 넷:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["오브젝트"] },
+         { "t": "th", "c": ["누가 만드나"] },
+         { "t": "th", "c": ["무엇을 표현하나"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["PVC"] }] },
+         { "t": "td", "c": ["나 — 앱 YAML에서"] },
+         { "t": "td", "c": ["요청: \"10Gi, 빠른 걸로\""] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["StorageClass"] }] },
+         { "t": "td", "c": ["플랫폼 팀 — 한 번만"] },
+         { "t": "td", "c": ["프로비저닝 방법: EBS, PD, Ceph…"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["PV"] }] },
+         { "t": "td", "c": ["프로비저너 — 요청이 올 때"] },
+         { "t": "td", "c": ["실제 디스크 — ", { "t": "b", "c": ["파드가 삭제돼도 살아남음"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["volumeClaimTemplate"] }] },
+         { "t": "td", "c": ["StatefulSet — 레플리카마다"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["db-0"] }, ", ", { "t": "code", "c": ["db-1"] }, "… 각자에게 PVC 하나씩"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "StatefulSet"
+        ]
+       },
+       " = 상태 있는 앱을 위한 Deployment: 고정된 이름(",
+       {
+        "t": "code",
+        "c": [
+         "db-0"
+        ]
+       },
+       ", ",
+       {
+        "t": "code",
+        "c": [
+         "db-1"
+        ]
+       },
+       "), 각자의 PVC, 순서 있는 시작/종료. 데이터베이스, Kafka, 정체성이 필요한 모든 것. ML 학습의 모델 체크포인트도 같은 PVC 메커니즘을 씁니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "trafficCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "트래픽 들이기 — Service 타입 & Ingress"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": [
+           "타입"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "도달 범위"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "용도"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "ClusterIP"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "클러스터 내부만"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "기본값 — 서비스 간 통신"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "NodePort"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "모든 노드 IP의 :30000-32767"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "빠른 데모, 베어메탈"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "LoadBalancer"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "공인 IP를 가진 클라우드 LB"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "프로덕션 입구, 서비스당 LB 하나($)"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Ingress"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "LB 하나로 호스트/경로 HTTP 라우팅"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "api.example.com → api-svc"
+            ]
+           },
+           ", TLS 종료 — 보통의 정답"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "beyondCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Deployment 너머"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Job"
+        ]
+       },
+       " — 완료까지 실행(배치, 마이그레이션, ML 학습 1회). ",
+       {
+        "t": "b",
+        "c": [
+         "CronJob"
+        ]
+       },
+       " — 스케줄 위의 Job. ",
+       {
+        "t": "b",
+        "c": [
+         "DaemonSet"
+        ]
+       },
+       " — 노드마다 정확히 파드 하나: 로그 수집기, 모니터링 에이전트… 그리고 6단계의 NVIDIA device plugin — 이제 그게 어떤 종류의 오브젝트인지 아시겠죠."
+      ]
+     },
+     "\n"
+    ]
+   }
   ]
  },
  "m9": {
   "title": "프로덕션 & 생태계",
   "sub": "5단계: 쿠버네티스를 진짜로 운영하기 — 패키징, 배포, 관측성, 보안, 확장.",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Helm — 패키지 매니저"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "마이크로서비스 10개 × 환경 4개 = YAML 지옥. Helm ",
-        {
-         "t": "b",
-         "c": [
-          "차트"
-         ]
-        },
-        "는 템플릿화된 YAML이고, 환경마다 다른 값은 ",
-        {
-         "t": "code",
-         "c": [
-          "values.yaml"
-         ]
-        },
-        "에 삽니다(",
-        {
-         "t": "code",
-         "c": [
-          "replicas: {{ .Values.replicaCount }}"
-         ]
-        },
-        "). 그리고: ",
-        {
-         "t": "code",
-         "c": [
-          "helm install prometheus prometheus-community/kube-prometheus-stack"
-         ]
-        },
-        " — 복잡한 앱 전체가 명령 하나로, ",
-        {
-         "t": "code",
-         "c": [
-          "helm upgrade"
-         ]
-        },
-        "/",
-        {
-         "t": "code",
-         "c": [
-          "rollback"
-         ]
-        },
-        "으로 관리. 차트를 만들기 한참 전부터 차트를 쓰게 될 겁니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "GitOps — 한 층 위의 조정 루프"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "K8s의 핵심은 이미 알고 있습니다: 컨트롤러가 실제 상태를 원하는 상태에 맞춘다. ",
-        {
-         "t": "b",
-         "c": [
-          "GitOps는 같은 루프를 배포 자체에 적용합니다"
-         ]
-        },
-        ": git 저장소가 모든 매니페스트를 담고, 클러스터 내 에이전트(",
-        {
-         "t": "b",
-         "c": [
-          "Argo CD"
-         ]
-        },
-        "/",
-        {
-         "t": "b",
-         "c": [
-          "Flux"
-         ]
-        },
-        ")가 클러스터와 저장소를 끊임없이 비교하고 동기화합니다. 배포 = PR 머지. 롤백 = ",
-        {
-         "t": "code",
-         "c": [
-          "git revert"
-         ]
-        },
-        ". 아무도 prod에 손으로 ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl apply"
-         ]
-        },
-        " 하지 않고, 클러스터는 저장소에서 통째로 재구축 가능합니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "관측성"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "메트릭:"
-         ]
-        },
-        " Prometheus가 모든 것을 수집(파드, 노드, kube-state-metrics); Grafana 대시보드; Alertmanager가 호출. 골든 시그널을 보세요: 지연, 트래픽, 오류, 포화. ",
-        {
-         "t": "b",
-         "c": [
-          "로그:"
-         ]
-        },
-        " stdout → 노드 에이전트(Fluent Bit) → Loki/Elastic; ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl logs"
-         ]
-        },
-        "는 파드 몇 개를 넘으면 못 씁니다. ",
-        {
-         "t": "b",
-         "c": [
-          "이벤트:"
-         ]
-        },
-        " ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl get events"
-         ]
-        },
-        " / ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        " — FailedScheduling에서 봤듯 디버깅의 첫 정거장. 디버깅 순서: ",
-        {
-         "t": "code",
-         "c": [
-          "get pods"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        "(이벤트) → ",
-        {
-         "t": "code",
-         "c": [
-          "logs"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "exec"
-         ]
-        },
-        "."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "보안 — 네 개의 층"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "RBAC"
-         ]
-        },
-        ": 누가 무엇을 할 수 있나 — Role(리소스에 대한 동사)을 사용자/ServiceAccount에 바인딩. 모든 파드는 ServiceAccount로 실행됩니다. 최소 권한은 소프트웨어에도 적용됩니다."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "파드 보안"
-         ]
-        },
-        ": ",
-        {
-         "t": "code",
-         "c": [
-          "securityContext"
-         ]
-        },
-        " — ",
-        {
-         "t": "code",
-         "c": [
-          "runAsNonRoot"
-         ]
-        },
-        ", capability 제거, 읽기 전용 루트 FS. Pod Security Standards가 네임스페이스별로 강제합니다."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "네트워크"
-         ]
-        },
-        ": 기본값으로는 ",
-        {
-         "t": "i",
-         "c": [
-          "모든 파드가 모든 파드와 통신 가능"
-         ]
-        },
-        ". NetworkPolicy는 레이블 위의 방화벽: \"db는 app=api 트래픽만 받는다\"."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "공급망"
-         ]
-        },
-        ": 이미지 스캔(Trivy), 다이제스트 고정, 서명(cosign), 최소 베이스 이미지 — 2단계의 distroless 습관이 여기서 빛납니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "CRD & Operator — 쿠버네티스 자체를 확장하기"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "CustomResourceDefinition"
-         ]
-        },
-        "은 API 서버에 새 오브젝트 타입을 가르치고, ",
-        {
-         "t": "b",
-         "c": [
-          "Operator"
-         ]
-        },
-        "는 그것을 조정하는 커스텀 컨트롤러입니다. ",
-        {
-         "t": "code",
-         "c": [
-          "kind: Certificate"
-         ]
-        },
-        "(cert-manager가 TLS 갱신), ",
-        {
-         "t": "code",
-         "c": [
-          "kind: PostgresCluster"
-         ]
-        },
-        "(오퍼레이터가 페일오버/백업 처리), 그리고 — GPU 루프를 닫으며 — ",
-        {
-         "t": "b",
-         "c": [
-          "NVIDIA GPU Operator"
-         ]
-        },
-        ": 모든 GPU 노드에 드라이버, device plugin, DCGM 모니터링을 대신 설치합니다. 오퍼레이터를 이해하면 왜 사람들이 \"쿠버네티스는 플랫폼을 만드는 플랫폼\"이라 하는지 알게 됩니다."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "클러스터 자체를 운영하기"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "매니지드 컨트롤 플레인(GKE/EKS/AKS)이 기본값입니다 — 노드 풀, 업그레이드, 비용은 여전히 내 몫. 그래도 순서는 알아두세요: 컨트롤 플레인 업그레이드 → 노드 풀(한 번에 한 노드씩 drain/cordon, 마이너 버전은 한 단계씩), 무엇이든 하기 전에 ",
-        {
-         "t": "b",
-         "c": [
-          "etcd 백업"
-         ]
-        },
-        ", drain이 쿼럼을 무너뜨리지 않도록 PodDisruptionBudget. 노트북용 도구: CI/테스트엔 kind, 엣지엔 k3s, 매니지드가 숨기는 것(그리고 CKA가 시험하는 것)을 배우려면 kubeadm."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
+  "helmCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Helm — 패키지 매니저"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "마이크로서비스 10개 × 환경 4개 = YAML 지옥. Helm ",
+       {
+        "t": "b",
+        "c": [
+         "차트"
+        ]
+       },
+       "는 템플릿화된 YAML이고, 환경마다 다른 값은 ",
+       {
+        "t": "code",
+        "c": [
+         "values.yaml"
+        ]
+       },
+       "에 삽니다(",
+       {
+        "t": "code",
+        "c": [
+         "replicas: {{ .Values.replicaCount }}"
+        ]
+       },
+       "). 그리고: ",
+       {
+        "t": "code",
+        "c": [
+         "helm install prometheus prometheus-community/kube-prometheus-stack"
+        ]
+       },
+       " — 복잡한 앱 전체가 명령 하나로, ",
+       {
+        "t": "code",
+        "c": [
+         "helm upgrade"
+        ]
+       },
+       "/",
+       {
+        "t": "code",
+        "c": [
+         "rollback"
+        ]
+       },
+       "으로 관리. 차트를 만들기 한참 전부터 차트를 쓰게 될 겁니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "gitopsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "GitOps — 한 층 위의 조정 루프"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "K8s의 핵심은 이미 알고 있습니다: 컨트롤러가 실제 상태를 원하는 상태에 맞춘다. ",
+       {
+        "t": "b",
+        "c": [
+         "GitOps는 같은 루프를 배포 자체에 적용합니다"
+        ]
+       },
+       ": git 저장소가 모든 매니페스트를 담고, 클러스터 내 에이전트(",
+       {
+        "t": "b",
+        "c": [
+         "Argo CD"
+        ]
+       },
+       "/",
+       {
+        "t": "b",
+        "c": [
+         "Flux"
+        ]
+       },
+       ")가 클러스터와 저장소를 끊임없이 비교하고 동기화합니다. 배포 = PR 머지. 롤백 = ",
+       {
+        "t": "code",
+        "c": [
+         "git revert"
+        ]
+       },
+       ". 아무도 prod에 손으로 ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl apply"
+        ]
+       },
+       " 하지 않고, 클러스터는 저장소에서 통째로 재구축 가능합니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "helmDemoTitle": "🎛 해보기 — values를 넣으면 매니페스트가 나온다",
+  "helmDemoIntro": [
+   "아래는 손잡이가 세 개 달린 진짜 차트입니다. 값을 바꾸면 ",
+   {
+    "t": "code",
+    "c": [
+     "helm template"
+    ]
+   },
+   " 렌더링이 어떻게 변하는지 보세요 — 강조된 줄이 바뀐 부분입니다. 템플릿은 그대로, ",
+   {
+    "t": "code",
+    "c": [
+     "values.yaml"
+    ]
+   },
+   "만 바뀝니다."
+  ],
+  "helmValuesHead": "values.yaml — 손잡이",
+  "helmRenderHead": "렌더링된 매니페스트",
+  "helmDemoHint0": [
+   "기본값은 web:v1 한 개, Ingress 없음. replicas 5, tag v2, ingress 켜기를 시도해 보세요."
+  ],
+  "gitopsDemoTitle": "🔁 해보기 — 조정 루프를 눈으로",
+  "gitopsDemoIntro": [
+   "머지로 배포하고, revert로 롤백하고 — 누군가 prod를 손으로 고치면 무슨 일이 생기는지 보세요. 에이전트(",
+   {
+    "t": "b",
+    "c": [
+     "Argo CD"
+    ]
+   },
+   " 스타일)가 매 틱마다 저장소와 클러스터를 비교합니다."
+  ],
+  "gitopsDemoBtns": [
+   "PR 머지 (v2 배포)",
+   "git revert (롤백)",
+   "kubectl edit prod (드리프트!)",
+   "지금 동기화"
+  ],
+  "gitopsDemoAuto": "자동 동기화",
+  "gitopsDemoHint0": [
+   "저장소와 클러스터가 일치합니다 — 배지가 Synced. PR을 머지해 배포해 보세요."
+  ],
+  "gitopsRepoHead": "📁 git 저장소 — 원하는 상태",
+  "gitopsAgentHead": "🤖 에이전트",
+  "gitopsClusterHead": "☸ 클러스터 — 실제 상태",
+  "obsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "관측성"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "세 개의 기둥, 세 개의 질문. ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl logs"
+        ]
+       },
+       "와 ",
+       {
+        "t": "code",
+        "c": [
+         "get events"
+        ]
+       },
+       "는 파드 몇 개를 넘으면 한계에 부딪힙니다 — 프로덕션은 아래의 스택을 돌리지만, 질문 자체는 변하지 않습니다."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["기둥"] },
+         { "t": "th", "c": ["스택"] },
+         { "t": "th", "c": ["답해 주는 질문"] },
+         { "t": "th", "c": ["첫 명령"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["메트릭"] }] },
+         { "t": "td", "c": ["Prometheus → Grafana → Alertmanager"] },
+         { "t": "td", "c": ["지금 건강한가? — 지연, 트래픽, 오류, 포화"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl top pods"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["로그"] }] },
+         { "t": "td", "c": ["stdout → Fluent Bit → Loki/Elastic"] },
+         { "t": "td", "c": ["죽을 때 뭐라고 말했나?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl logs --previous"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["이벤트"] }] },
+         { "t": "td", "c": ["API 서버 — 기본 내장"] },
+         { "t": "td", "c": ["클러스터가 얘한테 무슨 짓을 했나?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl get events"] }] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# 디버깅 순서 — 5단계쯤 되면 손이 기억합니다"] },
+       "\nkubectl get pods                 ",
+       { "t": "span", "cls": "cm", "c": ["# 뭐가 깨졌나?"] },
+       "\nkubectl describe pod web-0       ",
+       { "t": "span", "cls": "cm", "c": ["# 이벤트: 왜?"] },
+       "\nkubectl logs web-0 --previous    ",
+       { "t": "span", "cls": "cm", "c": ["# 뭐라고 말하고 죽었나?"] },
+       "\nkubectl exec -it web-0 -- sh     ",
+       { "t": "span", "cls": "cm", "c": ["# 안에서 직접 확인"] }
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "secCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "보안 — 네 개의 층"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "클러스터 보안은 설정 하나로 끝나지 않습니다. 프로덕션 보안은 ",
+       {
+        "t": "b",
+        "c": [
+         "심층 방어"
+        ]
+       },
+       "입니다: 공격자가 차례로 뚫어야 하는 독립적인 네 개의 층. 각 층을 클릭해 무엇을 지키는지 — 그리고 어떤 명령으로 켜는지 확인해 보세요."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "secLayerLabels": [
+   "1 · RBAC — 누가 API를 부를 수 있나",
+   "2 · 파드 보안 — 파드가 무엇을 할 수 있나",
+   "3 · NetworkPolicy — 누가 누구와 통신하나",
+   "4 · 공급망 — 어떤 코드가 들어오나"
+  ],
+  "secEmpty": [
+   {
+    "t": "p",
+    "cls": "empty",
+    "c": [
+     "← 층을 클릭해 보세요. 맨 위 = API를 부르는 사람과 소프트웨어, 맨 아래 = 배포하는 코드. 공격자는 네 층을 모두 통과해야 합니다."
+    ]
+   }
+  ],
+  "crdCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "CRD & Operator — 쿠버네티스 자체를 확장하기"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "CustomResourceDefinition"
+        ]
+       },
+       "은 API 서버에 새 오브젝트 타입을 가르치고, ",
+       {
+        "t": "b",
+        "c": [
+         "Operator"
+        ]
+       },
+       "는 그것을 조정하는 커스텀 컨트롤러입니다. ",
+       {
+        "t": "code",
+        "c": [
+         "kind: Certificate"
+        ]
+       },
+       "(cert-manager가 TLS 갱신), ",
+       {
+        "t": "code",
+        "c": [
+         "kind: PostgresCluster"
+        ]
+       },
+       "(오퍼레이터가 페일오버/백업 처리), 그리고 — GPU 루프를 닫으며 — ",
+       {
+        "t": "b",
+        "c": [
+         "NVIDIA GPU Operator"
+        ]
+       },
+       ": 모든 GPU 노드에 드라이버, device plugin, DCGM 모니터링을 대신 설치합니다. 오퍼레이터를 이해하면 왜 사람들이 \"쿠버네티스는 플랫폼을 만드는 플랫폼\"이라 하는지 알게 됩니다."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "crdDemoTitle": "🧬 단계별로 — 클러스터에 새 재주 가르치기",
+  "crdDemoIntro": [
+   "빈 클러스터에서 스스로 복구하는 데이터베이스까지 다섯 단계. 각 ",
+   {
+    "t": "code",
+    "c": [
+     "apply"
+    ]
+   },
+   "가 실제로 하는 일 — 그리고 일어나지 않는 일 — 을 지켜보세요."
+  ],
+  "crdDemoBtnNext": "▶ 다음 단계",
+  "crdDemoBtnReset": "↺ 처음부터",
+  "crdDemoYamlHead": "내가 apply 하는 것",
+  "crdDemoClusterHead": "클러스터에 존재하는 것",
+  "crdDemoHint0": [
+   "next를 누르세요: 먼저 API 서버에 새 kind를 가르칩니다."
+  ],
+  "clusterCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "클러스터 자체를 운영하기"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "프로덕션에서는 매니지드 컨트롤 플레인이 기본값입니다 — 하지만 \"매니지드\"여도 노드 풀, 업그레이드, 비용은 여전히 내 몫이고, 내가 하는 drain이 쿼럼을 무너뜨리지 않게 막아 주는 건 ",
+       {
+        "t": "b",
+        "c": [
+         "PodDisruptionBudget"
+        ]
+       },
+       "입니다. 일에 맞는 도구를 고르고, 클라우드가 대신해 주더라도 업그레이드 순서는 알아두세요."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["도구"] },
+         { "t": "th", "c": ["용도"] },
+         { "t": "th", "c": ["여전히 내 몫인 것"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kind"] }] },
+         { "t": "td", "c": ["CI/테스트용 일회용 클러스터"] },
+         { "t": "td", "c": ["없음 — 다 쓰면 지우면 끝"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["k3s"] }] },
+         { "t": "td", "c": ["엣지, IoT, 홈랩 — 바이너리 하나"] },
+         { "t": "td", "c": ["그것이 도는 머신"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kubeadm"] }] },
+         { "t": "td", "c": ["진짜 부트스트랩 — 매니지드가 숨기는 것, 그리고 CKA가 시험하는 것"] },
+         { "t": "td", "c": ["전부: 업그레이드, 인증서, etcd 백업"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": ["GKE / EKS / AKS"] },
+         { "t": "td", "c": ["프로덕션 기본값"] },
+         { "t": "td", "c": ["노드 풀, 업그레이드, 비용"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# 노드 업그레이드 순서 — 한 번에 한 노드, 마이너 버전은 한 단계씩,\n# 그리고 무엇보다 먼저 etcd 스냅샷"] },
+       "\nkubectl drain node-1 --ignore-daemonsets\napt-get install kubeadm=1.31.x-* && kubeadm upgrade node\nsystemctl restart kubelet && kubectl uncordon node-1"
+      ]
+     },
+     "\n"
+    ]
+   }
   ]
  },
  "m10": {

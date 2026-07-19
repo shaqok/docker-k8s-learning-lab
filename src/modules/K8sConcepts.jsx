@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import Html from '../components/Html.jsx';
 import Rich from '../components/Rich.jsx';
+import PracticeLink from '../components/PracticeLink.jsx';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { tr } from '../i18n/dynamic.js';
 import { content } from '../content/index.js';
@@ -149,8 +150,16 @@ export default function K8sConcepts() {
       </div>
 
       <DemoCluster c={c} lang={lang} />
+      <PracticeLink
+        to="m4"
+        blurb={{ en: 'Deploy, kill, scale and roll out for real — with kubectl', ko: '배포·삭제·스케일·롤아웃을 kubectl로 직접 해 보기' }}
+      />
 
       <Rich content={c.objects} />
+      <PracticeLink
+        to="m10"
+        blurb={{ en: 'Now break it on purpose in the Troubleshooting Gym', ko: '이제 트러블슈팅 짐에서 일부러 망가뜨려 보기' }}
+      />
     </>
   );
 }

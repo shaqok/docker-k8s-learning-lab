@@ -1550,523 +1550,7 @@ export default {
  "m7": {
   "title": "Docker in Depth",
   "sub": "Stage 2: what separates \"I can run a container\" from \"I ship containers\".",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Layer caching — instruction order is a performance feature"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ❌ any code edit re-runs pip install"
-             ]
-            },
-            "\nCOPY . .\nRUN pip install -r requirements.txt"
-           ]
-          },
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ✅ deps layer cached until requirements.txt changes"
-             ]
-            },
-            "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            "Docker reuses a cached layer only if the instruction ",
-            {
-             "t": "i",
-             "c": [
-              "and everything before it"
-             ]
-            },
-            " is unchanged. Put slow, rarely-changing steps (deps) before fast-changing ones (your code). For ML images this is the difference between 4-second and 25-minute rebuilds."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Data — the writable layer dies with the container"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Anything a container writes to its own filesystem is deleted at ",
-        {
-         "t": "code",
-         "c": [
-          "docker rm"
-         ]
-        },
-        ". Persistent data needs a mount:"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": []
-          },
-          {
-           "t": "th",
-           "c": [
-            "Volume"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "Bind mount"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Syntax"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v pgdata:/var/lib/postgresql/data"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v ./src:/app/src"
-             ]
-            }
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Lives"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Docker-managed area on the host"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "An exact host folder you chose"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Best for"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Databases, anything production"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Live-editing code during development"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "Same idea reappears in Kubernetes as PersistentVolumes (Stage 4) — pods are as disposable as containers, so state always lives outside them."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Networking — containers find each other by name"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# api can now reach \"db:5432\" — Docker's DNS resolves container names"
-         ]
-        }
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "On a ",
-        {
-         "t": "b",
-         "c": [
-          "user-defined network"
-         ]
-        },
-        ", containers resolve each other by container name — no IPs in your config. ",
-        {
-         "t": "code",
-         "c": [
-          "-p host:container"
-         ]
-        },
-        " is only for reaching a container ",
-        {
-         "t": "i",
-         "c": [
-          "from outside"
-         ]
-        },
-        " (your browser); container-to-container traffic never needs it."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "Kubernetes takes this further: every pod gets its own IP, and Services give stable DNS names cluster-wide (",
-        {
-         "t": "code",
-         "c": [
-          "web.default.svc.cluster.local"
-         ]
-        },
-        ")."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Docker Compose — your whole stack in one file"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "pre",
-         "cls": "code",
-         "c": [
-          {
-           "t": "span",
-           "cls": "cm",
-           "c": [
-            "# compose.yaml — web + cache + db"
-           ]
-          },
-          "\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "services"
-           ]
-          },
-          ":\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "web"
-           ]
-          },
-          ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "cache"
-           ]
-          },
-          ":\n    image: redis:7\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "db"
-           ]
-          },
-          ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "volumes"
-           ]
-          },
-          ":\n  pgdata:"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "docker compose up -d"
-             ]
-            },
-            " starts everything (networked together, DNS by service name); ",
-            {
-             "t": "code",
-             "c": [
-              "docker compose down"
-             ]
-            },
-            " removes it all. One file in git = reproducible dev environment for the whole team."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "cls": "hint",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "This is your bridge to Kubernetes:"
-             ]
-            },
-            " Compose is declarative desired state for one machine. A K8s manifest is the same idea for a fleet — plus reconciliation. If you can read this file, Stage 4's YAML will feel familiar."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Registries, tags & digests"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker tag myapp ",
-        {
-         "t": "span",
-         "cls": "g",
-         "c": [
-          "ghcr.io/daniel/myapp:1.4.2"
-         ]
-        },
-        "   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# registry/namespace/repo:tag"
-         ]
-        },
-        "\ndocker push ghcr.io/daniel/myapp:1.4.2"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "code",
-         "c": [
-          ":latest"
-         ]
-        },
-        " is just the default tag name — it is ",
-        {
-         "t": "b",
-         "c": [
-          "not"
-         ]
-        },
-        " automatically the newest, and it ",
-        {
-         "t": "i",
-         "c": [
-          "moves"
-         ]
-        },
-        ": the same tag can point to different bytes tomorrow. Production systems pin versions (",
-        {
-         "t": "code",
-         "c": [
-          ":1.4.2"
-         ]
-        },
-        ") or immutable digests (",
-        {
-         "t": "code",
-         "c": [
-          "@sha256:…"
-         ]
-        },
-        "). Kubernetes pulls by tag too — a moving tag plus ",
-        {
-         "t": "code",
-         "c": [
-          "imagePullPolicy"
-         ]
-        },
-        " confusion is a classic outage."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
-  ],
+  "msTitle": "Multi-stage builds — ship the app, not the toolchain",
   "msPre": [
    {
     "t": "pre",
@@ -2124,1194 +1608,1863 @@ export default {
    }
   ],
   "msHint": "Only the last stage becomes the image. Build tools, source code, and caches stay behind. Smaller image = faster pulls, faster pod starts, smaller attack surface.",
-  "msTitle": "Multi-stage builds — ship the app, not the toolchain"
+  "cacheDemoTitle": "⚡ Try it — feel the cache bust",
+  "cacheDemoIntro": [
+   "Two Dockerfiles, same app. Edit a source file, rebuild, and watch where the cache breaks — then flip the order and rebuild the same edit."
+  ],
+  "cacheDemoBtns": [
+   "✎ edit app.js",
+   "▶ docker build"
+  ],
+  "cacheDemoOrder": "deps-first order (COPY package.json before npm ci)",
+  "cacheDemoHint0": [
+   "Build once, edit app.js, build again — then flip the order and repeat the same edit."
+  ],
+  "cacheTimeLabel": "build time",
+  "cacheCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Layer caching — instruction order is a performance feature"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ❌ any code edit re-runs pip install"
+            ]
+           },
+           "\nCOPY . .\nRUN pip install -r requirements.txt"
+          ]
+         },
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ✅ deps layer cached until requirements.txt changes"
+            ]
+           },
+           "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           "Docker reuses a cached layer only if the instruction ",
+           {
+            "t": "i",
+            "c": [
+             "and everything before it"
+            ]
+           },
+           " is unchanged. Put slow, rarely-changing steps (deps) before fast-changing ones (your code). For ML images this is the difference between 4-second and 25-minute rebuilds."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "dataCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Data — the writable layer dies with the container"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Anything a container writes to its own filesystem is deleted at ",
+       {
+        "t": "code",
+        "c": [
+         "docker rm"
+        ]
+       },
+       ". Persistent data needs a mount:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": []
+         },
+         {
+          "t": "th",
+          "c": [
+           "Volume"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "Bind mount"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Syntax"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v pgdata:/var/lib/postgresql/data"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v ./src:/app/src"
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Lives"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Docker-managed area on the host"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "An exact host folder you chose"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Best for"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Databases, anything production"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Live-editing code during development"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "Same idea reappears in Kubernetes as PersistentVolumes (Stage 4) — pods are as disposable as containers, so state always lives outside them."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "netCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Networking — containers find each other by name"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# api can now reach \"db:5432\" — Docker's DNS resolves container names"
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "On a ",
+       {
+        "t": "b",
+        "c": [
+         "user-defined network"
+        ]
+       },
+       ", containers resolve each other by container name — no IPs in your config. ",
+       {
+        "t": "code",
+        "c": [
+         "-p host:container"
+        ]
+       },
+       " is only for reaching a container ",
+       {
+        "t": "i",
+        "c": [
+         "from outside"
+        ]
+       },
+       " (your browser); container-to-container traffic never needs it."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "Kubernetes takes this further: every pod gets its own IP, and Services give stable DNS names cluster-wide (",
+       {
+        "t": "code",
+        "c": [
+         "web.default.svc.cluster.local"
+        ]
+       },
+       ")."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "composeCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Docker Compose — your whole stack in one file"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "pre",
+        "cls": "code",
+        "c": [
+         {
+          "t": "span",
+          "cls": "cm",
+          "c": [
+           "# compose.yaml — web + cache + db"
+          ]
+         },
+         "\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "services"
+          ]
+         },
+         ":\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "web"
+          ]
+         },
+         ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "cache"
+          ]
+         },
+         ":\n    image: redis:7\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "db"
+          ]
+         },
+         ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "volumes"
+          ]
+         },
+         ":\n  pgdata:"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "docker compose up -d"
+            ]
+           },
+           " starts everything (networked together, DNS by service name); ",
+           {
+            "t": "code",
+            "c": [
+             "docker compose down"
+            ]
+           },
+           " removes it all. One file in git = reproducible dev environment for the whole team."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "cls": "hint",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "This is your bridge to Kubernetes:"
+            ]
+           },
+           " Compose is declarative desired state for one machine. A K8s manifest is the same idea for a fleet — plus reconciliation. If you can read this file, Stage 4's YAML will feel familiar."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "registryCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Registries, tags & digests"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker tag myapp ",
+       {
+        "t": "span",
+        "cls": "g",
+        "c": [
+         "ghcr.io/daniel/myapp:1.4.2"
+        ]
+       },
+       "   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# registry/namespace/repo:tag"
+        ]
+       },
+       "\ndocker push ghcr.io/daniel/myapp:1.4.2"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "code",
+        "c": [
+         ":latest"
+        ]
+       },
+       " is just the default tag name — it is ",
+       {
+        "t": "b",
+        "c": [
+         "not"
+        ]
+       },
+       " automatically the newest, and it ",
+       {
+        "t": "i",
+        "c": [
+         "moves"
+        ]
+       },
+       ": the same tag can point to different bytes tomorrow. Production systems pin versions (",
+       {
+        "t": "code",
+        "c": [
+         ":1.4.2"
+        ]
+       },
+       ") or immutable digests (",
+       {
+        "t": "code",
+        "c": [
+         "@sha256:…"
+        ]
+       },
+       "). Kubernetes pulls by tag too — a moving tag plus ",
+       {
+        "t": "code",
+        "c": [
+         "imagePullPolicy"
+        ]
+       },
+       " confusion is a classic outage."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ]
  },
  "m8": {
   "title": "Kubernetes Operator Toolkit",
   "sub": "Stage 4: the lab taught you imperative commands. Real clusters run on declarative YAML plus the features below.",
-  "_ncards": 8,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Declarative YAML — the real workflow"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "pre",
-         "cls": "code",
-         "c": [
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "apiVersion"
-           ]
-          },
-          ": apps/v1\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "kind"
-           ]
-          },
-          ": Deployment\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "metadata"
-           ]
-          },
-          ":\n  name: web\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "spec"
-           ]
-          },
-          ":\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  template:\n    metadata:\n      labels: {app: web}          ",
-          {
-           "t": "span",
-           "cls": "cm",
-           "c": [
-            "# labels glue everything together"
-           ]
-          },
-          "\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.27\n        ports: [{containerPort: 80}]\n        resources:\n          requests: {cpu: 100m, memory: 128Mi}\n          limits: {memory: 256Mi}\n        readinessProbe:\n          httpGet: {path: /, port: 80}"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "kubectl apply -f deploy.yaml"
-             ]
-            },
-            " — the file ",
-            {
-             "t": "i",
-             "c": [
-              "is"
-             ]
-            },
-            " the desired state; apply it as often as you like (idempotent). Files live in git → review, rollback, audit for free."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "kubectl create deployment …"
-             ]
-            },
-            " (what the lab uses) is fine for learning and quick tests; ",
-            {
-             "t": "code",
-             "c": [
-              "apply"
-             ]
-            },
-            " is how teams work. ",
-            {
-             "t": "code",
-             "c": [
-              "kubectl get deploy web -o yaml"
-             ]
-            },
-            " shows any live object as YAML — a great way to learn the schema."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "cls": "hint",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "Labels & selectors"
-             ]
-            },
-            " are the glue: the Deployment finds its pods via ",
-            {
-             "t": "code",
-             "c": [
-              "matchLabels"
-             ]
-            },
-            ", Services route via the same labels, and ",
-            {
-             "t": "code",
-             "c": [
-              "kubectl get pods -l app=web"
-             ]
-            },
-            " filters by them. ",
-            {
-             "t": "b",
-             "c": [
-              "Namespaces"
-             ]
-            },
-            " partition it all per team/env."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "ConfigMaps & Secrets — config out of the image"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Same image in dev and prod; only injected config differs. ",
-        {
-         "t": "b",
-         "c": [
-          "ConfigMap"
-         ]
-        },
-        " = plain settings, ",
-        {
-         "t": "b",
-         "c": [
-          "Secret"
-         ]
-        },
-        " = credentials. Both arrive as env vars or mounted files:"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "env:\n- name: DB_HOST\n  valueFrom:\n    configMapKeyRef: {name: app-config, key: db_host}\n- name: DB_PASSWORD\n  valueFrom:\n    secretKeyRef: {name: db-creds, key: password}"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "Gotcha every interviewer asks: Secrets are only ",
-        {
-         "t": "b",
-         "c": [
-          "base64-encoded, not encrypted"
-         ]
-        },
-        ". Real protection = encryption-at-rest in etcd, RBAC limits (Stage 5), or an external manager (Vault, cloud secret stores)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Health probes — how K8s knows your app is actually OK"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": [
-            "Probe"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "Question"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "On failure"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "liveness"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Is it alive at all?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "kubelet ",
-            {
-             "t": "b",
-             "c": [
-              "restarts"
-             ]
-            },
-            " the container"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "readiness"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Can it take traffic right now?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Pod ",
-            {
-             "t": "b",
-             "c": [
-              "removed from Service endpoints"
-             ]
-            },
-            " — not restarted"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "startup"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Still booting?"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Holds off the other two probes (slow-starting apps, big models)"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Without a readiness probe, rolling updates route traffic to pods that aren't ready yet — brief 502s on every deploy. With one, the rollout waits. This is the single highest-value YAML you'll add."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Resources, limits & QoS"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "requests"
-         ]
-        },
-        " = what the scheduler reserves (this is the number used to decide pod placement — same mechanism you saw with GPUs). ",
-        {
-         "t": "b",
-         "c": [
-          "limits"
-         ]
-        },
-        " = the cgroup ceiling: exceed CPU → throttled; exceed memory → ",
-        {
-         "t": "b",
-         "c": [
-          "OOMKilled"
-         ]
-        },
-        " (the infamous exit code 137)."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "QoS classes follow from what you set: ",
-        {
-         "t": "b",
-         "c": [
-          "Guaranteed"
-         ]
-        },
-        " (requests = limits) evicted last, ",
-        {
-         "t": "b",
-         "c": [
-          "Burstable"
-         ]
-        },
-        " in the middle, ",
-        {
-         "t": "b",
-         "c": [
-          "BestEffort"
-         ]
-        },
-        " (nothing set) evicted first under node pressure. Production rule: always set requests; set memory limits; think twice about CPU limits."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Autoscaling — three different dials"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "HPA"
-         ]
-        },
-        " (Horizontal Pod Autoscaler): more pods when load rises. ",
-        {
-         "t": "code",
-         "c": [
-          "desired = ceil(current × usage/target)"
-         ]
-        },
-        " — e.g. 3 pods at 90% CPU with a 60% target → 5 pods. ",
-        {
-         "t": "b",
-         "c": [
-          "VPA"
-         ]
-        },
-        ": same pods, resized requests. ",
-        {
-         "t": "b",
-         "c": [
-          "Cluster Autoscaler"
-         ]
-        },
-        ": more ",
-        {
-         "t": "i",
-         "c": [
-          "nodes"
-         ]
-        },
-        " — it watches for exactly the ",
-        {
-         "t": "b",
-         "c": [
-          "Pending"
-         ]
-        },
-        " pods you created in the lab and buys machines to fit them (this is how GPU node pools scale too)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Storage — PV, PVC, StatefulSets"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "A pod asks for storage with a ",
-        {
-         "t": "b",
-         "c": [
-          "PersistentVolumeClaim"
-         ]
-        },
-        " (\"10Gi, fast\") → a ",
-        {
-         "t": "b",
-         "c": [
-          "StorageClass"
-         ]
-        },
-        " provisions a real disk (EBS, PD, Ceph…) as a ",
-        {
-         "t": "b",
-         "c": [
-          "PersistentVolume"
-         ]
-        },
-        " → it's mounted into the pod and ",
-        {
-         "t": "b",
-         "c": [
-          "survives pod deletion"
-         ]
-        },
-        ". Claim/provision separation means app YAML stays cloud-agnostic."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "StatefulSet"
-         ]
-        },
-        " = Deployment for stateful apps: stable names (",
-        {
-         "t": "code",
-         "c": [
-          "db-0"
-         ]
-        },
-        ", ",
-        {
-         "t": "code",
-         "c": [
-          "db-1"
-         ]
-        },
-        "), each with its own PVC, started/stopped in order. Databases, Kafka, anything with identity. Model checkpoints in ML training use the same PVC machinery."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Getting traffic in — Service types & Ingress"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": [
-            "Type"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "Reach"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "Use"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "ClusterIP"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Inside cluster only"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Default — service-to-service"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "NodePort"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Every node's IP :30000-32767"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Quick demos, bare metal"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "LoadBalancer"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Cloud LB with public IP"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Production entry, one LB per service ($)"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Ingress"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "One LB, HTTP routing by host/path"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "api.example.com → api-svc"
-             ]
-            },
-            ", TLS termination — the usual answer"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Beyond Deployments"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Job"
-         ]
-        },
-        " — run to completion (batch, migrations, one ML training run). ",
-        {
-         "t": "b",
-         "c": [
-          "CronJob"
-         ]
-        },
-        " — Jobs on a schedule. ",
-        {
-         "t": "b",
-         "c": [
-          "DaemonSet"
-         ]
-        },
-        " — exactly one pod per node: log shippers, monitoring agents… and the NVIDIA device plugin from Stage 6 — now you know what kind of object it is."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
+  "yamlCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Declarative YAML — the real workflow"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "pre",
+        "cls": "code",
+        "c": [
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "apiVersion"
+          ]
+         },
+         ": apps/v1\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "kind"
+          ]
+         },
+         ": Deployment\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "metadata"
+          ]
+         },
+         ":\n  name: web\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "spec"
+          ]
+         },
+         ":\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  template:\n    metadata:\n      labels: {app: web}          ",
+         {
+          "t": "span",
+          "cls": "cm",
+          "c": [
+           "# labels glue everything together"
+          ]
+         },
+         "\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.27\n        ports: [{containerPort: 80}]\n        resources:\n          requests: {cpu: 100m, memory: 128Mi}\n          limits: {memory: 256Mi}\n        readinessProbe:\n          httpGet: {path: /, port: 80}"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "kubectl apply -f deploy.yaml"
+            ]
+           },
+           " — the file ",
+           {
+            "t": "i",
+            "c": [
+             "is"
+            ]
+           },
+           " the desired state; apply it as often as you like (idempotent). Files live in git → review, rollback, audit for free."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "kubectl create deployment …"
+            ]
+           },
+           " (what the lab uses) is fine for learning and quick tests; ",
+           {
+            "t": "code",
+            "c": [
+             "apply"
+            ]
+           },
+           " is how teams work. ",
+           {
+            "t": "code",
+            "c": [
+             "kubectl get deploy web -o yaml"
+            ]
+           },
+           " shows any live object as YAML — a great way to learn the schema."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "cls": "hint",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "Labels & selectors"
+            ]
+           },
+           " are the glue: the Deployment finds its pods via ",
+           {
+            "t": "code",
+            "c": [
+             "matchLabels"
+            ]
+           },
+           ", Services route via the same labels, and ",
+           {
+            "t": "code",
+            "c": [
+             "kubectl get pods -l app=web"
+            ]
+           },
+           " filters by them. ",
+           {
+            "t": "b",
+            "c": [
+             "Namespaces"
+            ]
+           },
+           " partition it all per team/env."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "configCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "ConfigMaps & Secrets — config out of the image"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Same image in dev and prod; only injected config differs. ",
+       {
+        "t": "b",
+        "c": [
+         "ConfigMap"
+        ]
+       },
+       " = plain settings, ",
+       {
+        "t": "b",
+        "c": [
+         "Secret"
+        ]
+       },
+       " = credentials. Both arrive as env vars or mounted files:"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "env:\n- name: DB_HOST\n  valueFrom:\n    configMapKeyRef: {name: app-config, key: db_host}\n- name: DB_PASSWORD\n  valueFrom:\n    secretKeyRef: {name: db-creds, key: password}"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "Gotcha every interviewer asks: Secrets are only ",
+       {
+        "t": "b",
+        "c": [
+         "base64-encoded, not encrypted"
+        ]
+       },
+       ". Real protection = encryption-at-rest in etcd, RBAC limits (Stage 5), or an external manager (Vault, cloud secret stores)."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "probesCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Health probes — how K8s knows your app is actually OK"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": [
+           "Probe"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "Question"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "On failure"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "liveness"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Is it alive at all?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "kubelet ",
+           {
+            "t": "b",
+            "c": [
+             "restarts"
+            ]
+           },
+           " the container"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "readiness"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Can it take traffic right now?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Pod ",
+           {
+            "t": "b",
+            "c": [
+             "removed from Service endpoints"
+            ]
+           },
+           " — not restarted"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "startup"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Still booting?"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Holds off the other two probes (slow-starting apps, big models)"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Without a readiness probe, rolling updates route traffic to pods that aren't ready yet — brief 502s on every deploy. With one, the rollout waits. This is the single highest-value YAML you'll add."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "qosCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Resources, limits & QoS"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "requests"
+        ]
+       },
+       " = what the scheduler reserves (this is the number used to decide pod placement — same mechanism you saw with GPUs). ",
+       {
+        "t": "b",
+        "c": [
+         "limits"
+        ]
+       },
+       " = the cgroup ceiling: exceed CPU → throttled; exceed memory → ",
+       {
+        "t": "b",
+        "c": [
+         "OOMKilled"
+        ]
+       },
+       " (the infamous exit code 137)."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "QoS classes follow from what you set: ",
+       {
+        "t": "b",
+        "c": [
+         "Guaranteed"
+        ]
+       },
+       " (requests = limits) evicted last, ",
+       {
+        "t": "b",
+        "c": [
+         "Burstable"
+        ]
+       },
+       " in the middle, ",
+       {
+        "t": "b",
+        "c": [
+         "BestEffort"
+        ]
+       },
+       " (nothing set) evicted first under node pressure. Production rule: always set requests; set memory limits; think twice about CPU limits."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "probeDemoTitle": "🩺 Try it — break the app, watch each probe react",
+  "probeDemoIntro": [
+   "One app, three probes, three very different consequences. The most misdiagnosed distinction in the drills: ",
+   {
+    "t": "b",
+    "c": [
+     "readiness gates traffic, liveness restarts, startup holds both off"
+    ]
+   },
+   "."
+  ],
+  "probeDemoBtns": [
+   "healthy app",
+   "503 on /ready",
+   "hang /healthz (deadlock)",
+   "slow start (cold JVM)"
+  ],
+  "probeDemoHint0": [
+   "All green. Now break it: try a 503 on /ready and note what does NOT happen."
+  ],
+  "probeRestartsLabel": "restarts",
+  "probeSvcHead": "Service endpoints",
+  "qosDemoTitle": "⚖️ Try it — dial in requests & limits",
+  "qosDemoIntro": [
+   "Pick requests and limits for one container and watch its ",
+   {
+    "t": "b",
+    "c": [
+     "QoS class"
+    ]
+   },
+   " change — computed by the exact rule the API server applies. The strip shows who dies first when the node runs out of memory."
+  ],
+  "qosEvictHead": "eviction order under node memory pressure",
+  "qosSlotLabels": [
+   "evicted first",
+   "evicted next",
+   "evicted last"
+  ],
+  "qosYourPod": "← your pod",
+  "scaleCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Autoscaling — three different dials"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Three autoscalers, three different dials — mixing them up is a classic interview stumble. Only one of them adds machines."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["dial"] },
+         { "t": "th", "c": ["what it scales"] },
+         { "t": "th", "c": ["the signal"] },
+         { "t": "th", "c": ["remember"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["HPA"] }] },
+         { "t": "td", "c": ["pod count"] },
+         { "t": "td", "c": ["CPU/memory vs target"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["desired = ceil(current × usage/target)"] }, " — 3 pods at 90% with a 60% target → 5"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["VPA"] }] },
+         { "t": "td", "c": ["requests/limits of the same pods"] },
+         { "t": "td", "c": ["observed usage over time"] },
+         { "t": "td", "c": ["pods restart to pick up the new size"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["Cluster Autoscaler"] }] },
+         { "t": "td", "c": [{ "t": "i", "c": ["nodes"] }] },
+         { "t": "td", "c": [{ "t": "b", "c": ["Pending"] }, " pods that fit nowhere"] },
+         { "t": "td", "c": ["buys machines to fit them — how GPU node pools scale too"] }
+        ]
+       }
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "storageCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Storage — PV, PVC, StatefulSets"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Storage separates the ask from the supply — app YAML stays cloud-agnostic while a ",
+       {
+        "t": "b",
+        "c": [
+         "StorageClass"
+        ]
+       },
+       " does the vendor-specific work. Four objects, four owners:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["object"] },
+         { "t": "th", "c": ["who creates it"] },
+         { "t": "th", "c": ["what it expresses"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["PVC"] }] },
+         { "t": "td", "c": ["you, in the app YAML"] },
+         { "t": "td", "c": ["the ask: \"10Gi, fast\""] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["StorageClass"] }] },
+         { "t": "td", "c": ["the platform team, once"] },
+         { "t": "td", "c": ["how to provision: EBS, PD, Ceph…"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["PV"] }] },
+         { "t": "td", "c": ["the provisioner, on demand"] },
+         { "t": "td", "c": ["the actual disk — ", { "t": "b", "c": ["survives pod deletion"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["volumeClaimTemplate"] }] },
+         { "t": "td", "c": ["a StatefulSet, per replica"] },
+         { "t": "td", "c": ["one PVC each for ", { "t": "code", "c": ["db-0"] }, ", ", { "t": "code", "c": ["db-1"] }, "…"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "StatefulSet"
+        ]
+       },
+       " = Deployment for stateful apps: stable names (",
+       {
+        "t": "code",
+        "c": [
+         "db-0"
+        ]
+       },
+       ", ",
+       {
+        "t": "code",
+        "c": [
+         "db-1"
+        ]
+       },
+       "), each with its own PVC, started/stopped in order. Databases, Kafka, anything with identity. Model checkpoints in ML training use the same PVC machinery."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "trafficCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Getting traffic in — Service types & Ingress"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": [
+           "Type"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "Reach"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "Use"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "ClusterIP"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Inside cluster only"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Default — service-to-service"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "NodePort"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Every node's IP :30000-32767"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Quick demos, bare metal"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "LoadBalancer"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Cloud LB with public IP"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Production entry, one LB per service ($)"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Ingress"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "One LB, HTTP routing by host/path"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "api.example.com → api-svc"
+            ]
+           },
+           ", TLS termination — the usual answer"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "beyondCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Beyond Deployments"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "b",
+        "c": [
+         "Job"
+        ]
+       },
+       " — run to completion (batch, migrations, one ML training run). ",
+       {
+        "t": "b",
+        "c": [
+         "CronJob"
+        ]
+       },
+       " — Jobs on a schedule. ",
+       {
+        "t": "b",
+        "c": [
+         "DaemonSet"
+        ]
+       },
+       " — exactly one pod per node: log shippers, monitoring agents… and the NVIDIA device plugin from Stage 6 — now you know what kind of object it is."
+      ]
+     },
+     "\n"
+    ]
+   }
   ]
  },
  "m9": {
   "title": "Production & the Ecosystem",
   "sub": "Stage 5: running Kubernetes for real — packaging, delivery, observability, security, extension.",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Helm — the package manager"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Ten microservices × four environments = YAML sprawl. A Helm ",
-        {
-         "t": "b",
-         "c": [
-          "chart"
-         ]
-        },
-        " is templated YAML; ",
-        {
-         "t": "code",
-         "c": [
-          "values.yaml"
-         ]
-        },
-        " holds what differs (",
-        {
-         "t": "code",
-         "c": [
-          "replicas: {{ .Values.replicaCount }}"
-         ]
-        },
-        "). Then: ",
-        {
-         "t": "code",
-         "c": [
-          "helm install prometheus prometheus-community/kube-prometheus-stack"
-         ]
-        },
-        " — entire complex apps in one command, ",
-        {
-         "t": "code",
-         "c": [
-          "helm upgrade"
-         ]
-        },
-        "/",
-        {
-         "t": "code",
-         "c": [
-          "rollback"
-         ]
-        },
-        " to manage them. You'll consume charts long before you write one."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "GitOps — the reconciliation loop, one level up"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "You already know the core K8s idea: controllers make actual state match desired state. ",
-        {
-         "t": "b",
-         "c": [
-          "GitOps applies the same loop to deployment itself"
-         ]
-        },
-        ": a git repo holds all manifests; an in-cluster agent (",
-        {
-         "t": "b",
-         "c": [
-          "Argo CD"
-         ]
-        },
-        " or ",
-        {
-         "t": "b",
-         "c": [
-          "Flux"
-         ]
-        },
-        ") continuously diffs cluster vs repo and syncs. Deploy = merge a PR. Rollback = ",
-        {
-         "t": "code",
-         "c": [
-          "git revert"
-         ]
-        },
-        ". Nobody runs ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl apply"
-         ]
-        },
-        " against prod by hand, and the cluster can be rebuilt from the repo."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Observability"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Metrics:"
-         ]
-        },
-        " Prometheus scrapes everything (pods, nodes, kube-state-metrics); Grafana dashboards; Alertmanager pages you. Watch the golden signals: latency, traffic, errors, saturation. ",
-        {
-         "t": "b",
-         "c": [
-          "Logs:"
-         ]
-        },
-        " stdout → node agent (Fluent Bit) → Loki/Elastic; ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl logs"
-         ]
-        },
-        " doesn't scale past a few pods. ",
-        {
-         "t": "b",
-         "c": [
-          "Events:"
-         ]
-        },
-        " ",
-        {
-         "t": "code",
-         "c": [
-          "kubectl get events"
-         ]
-        },
-        " / ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        " — your first debugging stop, as you saw with FailedScheduling. Debug flow: ",
-        {
-         "t": "code",
-         "c": [
-          "get pods"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "describe"
-         ]
-        },
-        " (events) → ",
-        {
-         "t": "code",
-         "c": [
-          "logs"
-         ]
-        },
-        " → ",
-        {
-         "t": "code",
-         "c": [
-          "exec"
-         ]
-        },
-        "."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Security — the four layers"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "RBAC"
-         ]
-        },
-        ": who can do what — Roles (verbs on resources) bound to users/ServiceAccounts. Every pod runs as a ServiceAccount; least privilege applies to software too."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Pod security"
-         ]
-        },
-        ": ",
-        {
-         "t": "code",
-         "c": [
-          "securityContext"
-         ]
-        },
-        " — ",
-        {
-         "t": "code",
-         "c": [
-          "runAsNonRoot"
-         ]
-        },
-        ", drop capabilities, read-only root FS. Pod Security Standards enforce this per namespace."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Network"
-         ]
-        },
-        ": by default ",
-        {
-         "t": "i",
-         "c": [
-          "every pod can talk to every pod"
-         ]
-        },
-        ". NetworkPolicies are firewalls on labels: \"db accepts traffic only from app=api\"."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "b",
-         "c": [
-          "Supply chain"
-         ]
-        },
-        ": scan images (Trivy), pin digests, sign (cosign), minimal base images — Stage 2's distroless habit pays off here."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "CRDs & Operators — extending Kubernetes itself"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "A ",
-        {
-         "t": "b",
-         "c": [
-          "CustomResourceDefinition"
-         ]
-        },
-        " teaches the API server a new object type; an ",
-        {
-         "t": "b",
-         "c": [
-          "Operator"
-         ]
-        },
-        " is a custom controller that reconciles it. ",
-        {
-         "t": "code",
-         "c": [
-          "kind: Certificate"
-         ]
-        },
-        " (cert-manager renews TLS), ",
-        {
-         "t": "code",
-         "c": [
-          "kind: PostgresCluster"
-         ]
-        },
-        " (operator handles failover/backups), and — closing the GPU loop — the ",
-        {
-         "t": "b",
-         "c": [
-          "NVIDIA GPU Operator"
-         ]
-        },
-        ", which installs drivers, device plugin, and DCGM monitoring on every GPU node for you. When you understand operators, you understand why people say Kubernetes is a platform for building platforms."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Running the cluster itself"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Managed control planes (GKE/EKS/AKS) are the default — you keep node pools, upgrades, and cost. Know the drill even so: control-plane upgrade → node pools (drain/cordon one node at a time, one minor version per hop), ",
-        {
-         "t": "b",
-         "c": [
-          "etcd backups"
-         ]
-        },
-        " before anything, PodDisruptionBudgets so drains don't take down your quorum. Tooling on your laptop: kind for CI/testing, k3s at the edge, kubeadm to learn what managed services hide (and what CKA tests)."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
+  "helmCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Helm — the package manager"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Ten microservices × four environments = YAML sprawl. A Helm ",
+       {
+        "t": "b",
+        "c": [
+         "chart"
+        ]
+       },
+       " is templated YAML; ",
+       {
+        "t": "code",
+        "c": [
+         "values.yaml"
+        ]
+       },
+       " holds what differs (",
+       {
+        "t": "code",
+        "c": [
+         "replicas: {{ .Values.replicaCount }}"
+        ]
+       },
+       "). Then: ",
+       {
+        "t": "code",
+        "c": [
+         "helm install prometheus prometheus-community/kube-prometheus-stack"
+        ]
+       },
+       " — entire complex apps in one command, ",
+       {
+        "t": "code",
+        "c": [
+         "helm upgrade"
+        ]
+       },
+       "/",
+       {
+        "t": "code",
+        "c": [
+         "rollback"
+        ]
+       },
+       " to manage them. You'll consume charts long before you write one."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "gitopsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "GitOps — the reconciliation loop, one level up"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "You already know the core K8s idea: controllers make actual state match desired state. ",
+       {
+        "t": "b",
+        "c": [
+         "GitOps applies the same loop to deployment itself"
+        ]
+       },
+       ": a git repo holds all manifests; an in-cluster agent (",
+       {
+        "t": "b",
+        "c": [
+         "Argo CD"
+        ]
+       },
+       " or ",
+       {
+        "t": "b",
+        "c": [
+         "Flux"
+        ]
+       },
+       ") continuously diffs cluster vs repo and syncs. Deploy = merge a PR. Rollback = ",
+       {
+        "t": "code",
+        "c": [
+         "git revert"
+        ]
+       },
+       ". Nobody runs ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl apply"
+        ]
+       },
+       " against prod by hand, and the cluster can be rebuilt from the repo."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "helmDemoTitle": "🎛 Try it — values in, manifests out",
+  "helmDemoIntro": [
+   "Below is a real chart with three knobs. Change a value and watch the ",
+   {
+    "t": "code",
+    "c": [
+     "helm template"
+    ]
+   },
+   " render update — highlighted lines are what changed. The templates never change; only ",
+   {
+    "t": "code",
+    "c": [
+     "values.yaml"
+    ]
+   },
+   " does."
+  ],
+  "helmValuesHead": "values.yaml — the knobs",
+  "helmRenderHead": "rendered manifests",
+  "helmDemoHint0": [
+   "Defaults render one replica of web:v1 and no Ingress. Try replicas 5, tag v2, or switch the ingress on."
+  ],
+  "gitopsDemoTitle": "🔁 Try it — the reconciliation loop, live",
+  "gitopsDemoIntro": [
+   "Deploy by merging, roll back by reverting — and watch what happens when someone edits prod by hand. The agent (",
+   {
+    "t": "b",
+    "c": [
+     "Argo CD"
+    ]
+   },
+   "-style) compares repo vs cluster on every tick."
+  ],
+  "gitopsDemoBtns": [
+   "merge PR (deploy v2)",
+   "git revert (roll back)",
+   "kubectl edit prod (drift!)",
+   "sync now"
+  ],
+  "gitopsDemoAuto": "auto-sync",
+  "gitopsDemoHint0": [
+   "Repo and cluster agree — the badge says Synced. Merge the PR to deploy."
+  ],
+  "gitopsRepoHead": "📁 git repo — desired",
+  "gitopsAgentHead": "🤖 agent",
+  "gitopsClusterHead": "☸ cluster — actual",
+  "obsCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Observability"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Three pillars, three questions. ",
+       {
+        "t": "code",
+        "c": [
+         "kubectl logs"
+        ]
+       },
+       " and ",
+       {
+        "t": "code",
+        "c": [
+         "get events"
+        ]
+       },
+       " stop scaling past a few pods — production runs the stack below, but the questions never change."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["pillar"] },
+         { "t": "th", "c": ["the stack"] },
+         { "t": "th", "c": ["the question it answers"] },
+         { "t": "th", "c": ["first command"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["Metrics"] }] },
+         { "t": "td", "c": ["Prometheus → Grafana → Alertmanager"] },
+         { "t": "td", "c": ["Is it healthy now? — latency, traffic, errors, saturation"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl top pods"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["Logs"] }] },
+         { "t": "td", "c": ["stdout → Fluent Bit → Loki/Elastic"] },
+         { "t": "td", "c": ["What did it say when it broke?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl logs --previous"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["Events"] }] },
+         { "t": "td", "c": ["the API server — built in"] },
+         { "t": "td", "c": ["What did the cluster do to it?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl get events"] }] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# the debug flow — muscle memory by Stage 5"] },
+       "\nkubectl get pods                 ",
+       { "t": "span", "cls": "cm", "c": ["# what's broken?"] },
+       "\nkubectl describe pod web-0       ",
+       { "t": "span", "cls": "cm", "c": ["# events: why?"] },
+       "\nkubectl logs web-0 --previous    ",
+       { "t": "span", "cls": "cm", "c": ["# what did it say?"] },
+       "\nkubectl exec -it web-0 -- sh     ",
+       { "t": "span", "cls": "cm", "c": ["# poke inside"] }
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "secCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Security — the four layers"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Nobody secures a cluster with one setting. Production security is ",
+       {
+        "t": "b",
+        "c": [
+         "defense in depth"
+        ]
+       },
+       ": four independent layers an attacker would have to beat in turn. Click each layer to see what it guards — and the one command that turns it on."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "secLayerLabels": [
+   "1 · RBAC — who can call the API",
+   "2 · Pod security — what a pod may do",
+   "3 · NetworkPolicy — who talks to whom",
+   "4 · Supply chain — what code gets in"
+  ],
+  "secEmpty": [
+   {
+    "t": "p",
+    "cls": "empty",
+    "c": [
+     "← Click a layer. Top = the people and software calling the API; bottom = the code you ship. An attacker has to get through all four."
+    ]
+   }
+  ],
+  "crdCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "CRDs & Operators — extending Kubernetes itself"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "A ",
+       {
+        "t": "b",
+        "c": [
+         "CustomResourceDefinition"
+        ]
+       },
+       " teaches the API server a new object type; an ",
+       {
+        "t": "b",
+        "c": [
+         "Operator"
+        ]
+       },
+       " is a custom controller that reconciles it. ",
+       {
+        "t": "code",
+        "c": [
+         "kind: Certificate"
+        ]
+       },
+       " (cert-manager renews TLS), ",
+       {
+        "t": "code",
+        "c": [
+         "kind: PostgresCluster"
+        ]
+       },
+       " (operator handles failover/backups), and — closing the GPU loop — the ",
+       {
+        "t": "b",
+        "c": [
+         "NVIDIA GPU Operator"
+        ]
+       },
+       ", which installs drivers, device plugin, and DCGM monitoring on every GPU node for you. When you understand operators, you understand why people say Kubernetes is a platform for building platforms."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "crdDemoTitle": "🧬 Step through — teach the cluster a new trick",
+  "crdDemoIntro": [
+   "Five steps from empty cluster to self-healing database. Watch what each ",
+   {
+    "t": "code",
+    "c": [
+     "apply"
+    ]
+   },
+   " actually does — and what doesn't happen."
+  ],
+  "crdDemoBtnNext": "▶ next step",
+  "crdDemoBtnReset": "↺ reset",
+  "crdDemoYamlHead": "what you apply",
+  "crdDemoClusterHead": "what exists in the cluster",
+  "crdDemoHint0": [
+   "Press next: first we teach the API server a new kind."
+  ],
+  "clusterCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Running the cluster itself"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Managed control planes are the default in production — but \"managed\" still leaves you node pools, upgrades and cost, and ",
+       {
+        "t": "b",
+        "c": [
+         "PodDisruptionBudgets"
+        ]
+       },
+       " are what keep your own drains from taking down quorum. Pick the right tool per job, and know the upgrade drill even when a cloud runs it for you."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["tool"] },
+         { "t": "th", "c": ["what it's for"] },
+         { "t": "th", "c": ["what you still own"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kind"] }] },
+         { "t": "td", "c": ["throwaway clusters in CI and tests"] },
+         { "t": "td", "c": ["nothing — delete it when done"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["k3s"] }] },
+         { "t": "td", "c": ["edge boxes, IoT, homelab — one binary"] },
+         { "t": "td", "c": ["the machine it runs on"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kubeadm"] }] },
+         { "t": "td", "c": ["the real bootstrap — what managed services hide, and what CKA tests"] },
+         { "t": "td", "c": ["everything: upgrades, certs, etcd backups"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": ["GKE / EKS / AKS"] },
+         { "t": "td", "c": ["the production default"] },
+         { "t": "td", "c": ["node pools, upgrades, cost"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# node upgrade drill — one node at a time, one minor version per hop,\n# and an etcd snapshot BEFORE any of it"] },
+       "\nkubectl drain node-1 --ignore-daemonsets\napt-get install kubeadm=1.31.x-* && kubeadm upgrade node\nsystemctl restart kubelet && kubectl uncordon node-1"
+      ]
+     },
+     "\n"
+    ]
+   }
   ]
  },
  "m10": {
