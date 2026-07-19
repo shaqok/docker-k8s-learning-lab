@@ -122,7 +122,7 @@ const systemHardeningLab = {
   },
   docs: [
     { label: 'Kubelet authentication/authorization', url: K8S_D + '/reference/access-authn-authz/kubelet-authn-authz/' },
-    { label: 'CIS Benchmark — Worker Node Security', url: K8S_D + '/reference/access-authn-authz/kubelet-authn-authz/' },
+    { label: 'CIS Benchmark — Worker Node Security', url: 'https://github.com/aquasecurity/kube-bench' },
   ],
   missions: [
     { id: 'bench-node-fail', desc: { en: '🖥 <code>ssh worker-1</code>, then <code>kube-bench run --targets=node</code> — see it FAIL', ko: '🖥 <code>ssh worker-1</code> 후 <code>kube-bench run --targets=node</code> — FAIL 확인' },
