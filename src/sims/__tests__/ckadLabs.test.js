@@ -42,6 +42,18 @@ describe('resource parsing & QoS', () => {
     // only limits set → requests default to limits → still Guaranteed
     expect(qosOf(mk('gu2', { limits: { cpu: '1', memory: '1Gi' } }))).toBe('Guaranteed');
   });
+
+  it('covers the m8 QoS-playground knob combinations', () => {
+    // the widget builds bare pods, so the badge can never disagree with kubectl describe
+    const pod = (resources) => ({ spec: { containers: [{ resources }] } });
+    expect(qosOf(pod(undefined))).toBe('BestEffort');
+    expect(qosOf(pod({ requests: { cpu: '250m' } }))).toBe('Burstable');
+    expect(qosOf(pod({ requests: { memory: '128Mi' } }))).toBe('Burstable');
+    expect(qosOf(pod({ requests: { cpu: '250m' }, limits: { cpu: '500m', memory: '256Mi' } }))).toBe('Burstable');
+    expect(qosOf(pod({ requests: { cpu: '250m' }, limits: { cpu: '500m' } }))).toBe('Burstable');
+    expect(qosOf(pod({ limits: { cpu: '500m', memory: '256Mi' } }))).toBe('Guaranteed');
+    expect(qosOf(pod({ requests: { cpu: '500m', memory: '256Mi' }, limits: { cpu: '500m', memory: '256Mi' } }))).toBe('Guaranteed');
+  });
 });
 
 describe('scheduler resource capacity', () => {

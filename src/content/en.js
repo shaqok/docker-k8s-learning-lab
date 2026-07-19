@@ -2576,6 +2576,24 @@ export default {
     ]
    }
   ],
+  "qosDemoTitle": "⚖️ Try it — dial in requests & limits",
+  "qosDemoIntro": [
+   "Pick requests and limits for one container and watch its ",
+   {
+    "t": "b",
+    "c": [
+     "QoS class"
+    ]
+   },
+   " change — computed by the exact rule the API server applies. The strip shows who dies first when the node runs out of memory."
+  ],
+  "qosEvictHead": "eviction order under node memory pressure",
+  "qosSlotLabels": [
+   "evicted first",
+   "evicted next",
+   "evicted last"
+  ],
+  "qosYourPod": "← your pod",
   "scaleCard": [
    {
     "t": "div",

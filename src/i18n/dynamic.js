@@ -182,6 +182,11 @@ export const KO_STR=[
  ["pod shop-db-1 — promoted → primary","pod shop-db-1 — 승격 → 프라이머리"],
  ["pod shop-db-1 — replica","pod shop-db-1 — 레플리카"],
  ["pod shop-db-0 — primary","pod shop-db-0 — 프라이머리"],
+ /* m8 operator-toolkit widgets */
+ ["No requests, no limits → <b>BestEffort</b>. First to be evicted under memory pressure — fine for batch jobs, scary for prod.","requests도 limits도 없음 → <b>BestEffort</b>. 메모리 압박이 오면 가장 먼저 축출됩니다 — 배치 작업엔 괜찮지만 prod에선 아찔하죠."],
+ ["Requests or limits exist but not requests == limits everywhere → <b>Burstable</b>. It may burst above its request; under pressure it outlives only BestEffort pods.","requests나 limits가 있지만 모든 곳에서 requests == limits는 아님 → <b>Burstable</b>. request 이상으로 튈 수 있고, 압박이 오면 BestEffort보다만 오래 삽니다."],
+ ["requests == limits for CPU and memory → <b>Guaranteed</b>. Evicted last — but the memory limit is a hard wall: exceed it and the container is OOMKilled.","CPU와 메모리 모두 requests == limits → <b>Guaranteed</b>. 가장 늦게 축출되지만, 메모리 limit은 단단한 벽입니다: 넘는 순간 컨테이너는 OOMKilled."],
+ ["Only limits set — requests default to limits, so this is still <b>Guaranteed</b>. A favorite exam trap.","limits만 설정 — requests가 limits 값으로 기본 설정되어 여전히 <b>Guaranteed</b>입니다. 시험 단골 함정."],
 ];;
 
 export function tr(lang,h){

@@ -2565,6 +2565,24 @@ export default {
     ]
    }
   ],
+  "qosDemoTitle": "⚖️ 해보기 — requests & limits 조절하기",
+  "qosDemoIntro": [
+   "컨테이너 하나의 requests와 limits를 골라 ",
+   {
+    "t": "b",
+    "c": [
+     "QoS 클래스"
+    ]
+   },
+   "가 어떻게 바뀌는지 보세요 — API 서버가 적용하는 규칙 그대로 계산됩니다. 아래 스트립은 노드 메모리가 바닥났을 때 누가 먼저 죽는지 보여줍니다."
+  ],
+  "qosEvictHead": "노드 메모리 압박 시 축출 순서",
+  "qosSlotLabels": [
+   "먼저 축출",
+   "그다음 축출",
+   "마지막 축출"
+  ],
+  "qosYourPod": "← 내 파드",
   "scaleCard": [
    {
     "t": "div",
