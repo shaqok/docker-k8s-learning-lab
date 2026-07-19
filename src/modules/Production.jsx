@@ -347,7 +347,18 @@ export default function Production() {
         />
       </div>
 
-      <Rich content={c.obsCard} />
+      <div className="card">
+        {/* obsCard is a single card — render its body here so the links join it */}
+        <Rich content={c.obsCard[0].c} />
+        <PracticeLink
+          to="m21"
+          blurb={{ en: 'Read real rings: logs --previous, event counts, an SLO burn', ko: '진짜 링 버퍼 읽기: logs --previous, 이벤트 카운트, SLO 소진' }}
+        />
+        <PracticeLink
+          to="m10"
+          blurb={{ en: 'Debug 11 broken clusters — where the debug flow becomes reflex', ko: '고장 난 클러스터 11개 디버깅 — 디버깅 순서가 반사신경이 되는 곳' }}
+        />
+      </div>
 
       <div className="card">
         {/* secCard is a single card — render its body inside this wrapper so the widget joins it */}
@@ -361,7 +372,14 @@ export default function Production() {
         <OperatorDemo c={c} lang={lang} />
       </div>
 
-      <Rich content={c.clusterCard} />
+      <div className="card">
+        {/* clusterCard is a single card — render its body here so the link joins it */}
+        <Rich content={c.clusterCard[0].c} />
+        <PracticeLink
+          to="m14"
+          blurb={{ en: 'Drain against a PDB, kubeadm-upgrade a cluster, snapshot etcd', ko: 'PDB에 막히는 drain, kubeadm 업그레이드, etcd 스냅샷 실습' }}
+        />
+      </div>
     </>
   );
 }

@@ -3104,76 +3104,80 @@ export default {
      {
       "t": "p",
       "c": [
-       {
-        "t": "b",
-        "c": [
-         "Metrics:"
-        ]
-       },
-       " Prometheus scrapes everything (pods, nodes, kube-state-metrics); Grafana dashboards; Alertmanager pages you. Watch the golden signals: latency, traffic, errors, saturation. ",
-       {
-        "t": "b",
-        "c": [
-         "Logs:"
-        ]
-       },
-       " stdout → node agent (Fluent Bit) → Loki/Elastic; ",
+       "Three pillars, three questions. ",
        {
         "t": "code",
         "c": [
          "kubectl logs"
         ]
        },
-       " doesn't scale past a few pods. ",
-       {
-        "t": "b",
-        "c": [
-         "Events:"
-        ]
-       },
-       " ",
+       " and ",
        {
         "t": "code",
         "c": [
-         "kubectl get events"
+         "get events"
         ]
        },
-       " / ",
+       " stop scaling past a few pods — production runs the stack below, but the questions never change."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "describe"
+         { "t": "th", "c": ["pillar"] },
+         { "t": "th", "c": ["the stack"] },
+         { "t": "th", "c": ["the question it answers"] },
+         { "t": "th", "c": ["first command"] }
         ]
        },
-       " — your first debugging stop, as you saw with FailedScheduling. Debug flow: ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "get pods"
+         { "t": "td", "c": [{ "t": "b", "c": ["Metrics"] }] },
+         { "t": "td", "c": ["Prometheus → Grafana → Alertmanager"] },
+         { "t": "td", "c": ["Is it healthy now? — latency, traffic, errors, saturation"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl top pods"] }] }
         ]
        },
-       " → ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "describe"
+         { "t": "td", "c": [{ "t": "b", "c": ["Logs"] }] },
+         { "t": "td", "c": ["stdout → Fluent Bit → Loki/Elastic"] },
+         { "t": "td", "c": ["What did it say when it broke?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl logs --previous"] }] }
         ]
        },
-       " (events) → ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "logs"
+         { "t": "td", "c": [{ "t": "b", "c": ["Events"] }] },
+         { "t": "td", "c": ["the API server — built in"] },
+         { "t": "td", "c": ["What did the cluster do to it?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl get events"] }] }
         ]
-       },
-       " → ",
-       {
-        "t": "code",
-        "c": [
-         "exec"
-        ]
-       },
-       "."
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# the debug flow — muscle memory by Stage 5"] },
+       "\nkubectl get pods                 ",
+       { "t": "span", "cls": "cm", "c": ["# what's broken?"] },
+       "\nkubectl describe pod web-0       ",
+       { "t": "span", "cls": "cm", "c": ["# events: why?"] },
+       "\nkubectl logs web-0 --previous    ",
+       { "t": "span", "cls": "cm", "c": ["# what did it say?"] },
+       "\nkubectl exec -it web-0 -- sh     ",
+       { "t": "span", "cls": "cm", "c": ["# poke inside"] }
       ]
      },
      "\n"
@@ -3317,14 +3321,70 @@ export default {
      {
       "t": "p",
       "c": [
-       "Managed control planes (GKE/EKS/AKS) are the default — you keep node pools, upgrades, and cost. Know the drill even so: control-plane upgrade → node pools (drain/cordon one node at a time, one minor version per hop), ",
+       "Managed control planes are the default in production — but \"managed\" still leaves you node pools, upgrades and cost, and ",
        {
         "t": "b",
         "c": [
-         "etcd backups"
+         "PodDisruptionBudgets"
         ]
        },
-       " before anything, PodDisruptionBudgets so drains don't take down your quorum. Tooling on your laptop: kind for CI/testing, k3s at the edge, kubeadm to learn what managed services hide (and what CKA tests)."
+       " are what keep your own drains from taking down quorum. Pick the right tool per job, and know the upgrade drill even when a cloud runs it for you."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["tool"] },
+         { "t": "th", "c": ["what it's for"] },
+         { "t": "th", "c": ["what you still own"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kind"] }] },
+         { "t": "td", "c": ["throwaway clusters in CI and tests"] },
+         { "t": "td", "c": ["nothing — delete it when done"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["k3s"] }] },
+         { "t": "td", "c": ["edge boxes, IoT, homelab — one binary"] },
+         { "t": "td", "c": ["the machine it runs on"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kubeadm"] }] },
+         { "t": "td", "c": ["the real bootstrap — what managed services hide, and what CKA tests"] },
+         { "t": "td", "c": ["everything: upgrades, certs, etcd backups"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": ["GKE / EKS / AKS"] },
+         { "t": "td", "c": ["the production default"] },
+         { "t": "td", "c": ["node pools, upgrades, cost"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# node upgrade drill — one node at a time, one minor version per hop,\n# and an etcd snapshot BEFORE any of it"] },
+       "\nkubectl drain node-1 --ignore-daemonsets\napt-get install kubeadm=1.31.x-* && kubeadm upgrade node\nsystemctl restart kubelet && kubectl uncordon node-1"
       ]
      },
      "\n"

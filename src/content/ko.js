@@ -3093,76 +3093,80 @@ export default {
      {
       "t": "p",
       "c": [
-       {
-        "t": "b",
-        "c": [
-         "메트릭:"
-        ]
-       },
-       " Prometheus가 모든 것을 수집(파드, 노드, kube-state-metrics); Grafana 대시보드; Alertmanager가 호출. 골든 시그널을 보세요: 지연, 트래픽, 오류, 포화. ",
-       {
-        "t": "b",
-        "c": [
-         "로그:"
-        ]
-       },
-       " stdout → 노드 에이전트(Fluent Bit) → Loki/Elastic; ",
+       "세 개의 기둥, 세 개의 질문. ",
        {
         "t": "code",
         "c": [
          "kubectl logs"
         ]
        },
-       "는 파드 몇 개를 넘으면 못 씁니다. ",
-       {
-        "t": "b",
-        "c": [
-         "이벤트:"
-        ]
-       },
-       " ",
+       "와 ",
        {
         "t": "code",
         "c": [
-         "kubectl get events"
+         "get events"
         ]
        },
-       " / ",
+       "는 파드 몇 개를 넘으면 한계에 부딪힙니다 — 프로덕션은 아래의 스택을 돌리지만, 질문 자체는 변하지 않습니다."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "describe"
+         { "t": "th", "c": ["기둥"] },
+         { "t": "th", "c": ["스택"] },
+         { "t": "th", "c": ["답해 주는 질문"] },
+         { "t": "th", "c": ["첫 명령"] }
         ]
        },
-       " — FailedScheduling에서 봤듯 디버깅의 첫 정거장. 디버깅 순서: ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "get pods"
+         { "t": "td", "c": [{ "t": "b", "c": ["메트릭"] }] },
+         { "t": "td", "c": ["Prometheus → Grafana → Alertmanager"] },
+         { "t": "td", "c": ["지금 건강한가? — 지연, 트래픽, 오류, 포화"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl top pods"] }] }
         ]
        },
-       " → ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "describe"
+         { "t": "td", "c": [{ "t": "b", "c": ["로그"] }] },
+         { "t": "td", "c": ["stdout → Fluent Bit → Loki/Elastic"] },
+         { "t": "td", "c": ["죽을 때 뭐라고 말했나?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl logs --previous"] }] }
         ]
        },
-       "(이벤트) → ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "logs"
+         { "t": "td", "c": [{ "t": "b", "c": ["이벤트"] }] },
+         { "t": "td", "c": ["API 서버 — 기본 내장"] },
+         { "t": "td", "c": ["클러스터가 얘한테 무슨 짓을 했나?"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["kubectl get events"] }] }
         ]
-       },
-       " → ",
-       {
-        "t": "code",
-        "c": [
-         "exec"
-        ]
-       },
-       "."
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# 디버깅 순서 — 5단계쯤 되면 손이 기억합니다"] },
+       "\nkubectl get pods                 ",
+       { "t": "span", "cls": "cm", "c": ["# 뭐가 깨졌나?"] },
+       "\nkubectl describe pod web-0       ",
+       { "t": "span", "cls": "cm", "c": ["# 이벤트: 왜?"] },
+       "\nkubectl logs web-0 --previous    ",
+       { "t": "span", "cls": "cm", "c": ["# 뭐라고 말하고 죽었나?"] },
+       "\nkubectl exec -it web-0 -- sh     ",
+       { "t": "span", "cls": "cm", "c": ["# 안에서 직접 확인"] }
       ]
      },
      "\n"
@@ -3305,14 +3309,70 @@ export default {
      {
       "t": "p",
       "c": [
-       "매니지드 컨트롤 플레인(GKE/EKS/AKS)이 기본값입니다 — 노드 풀, 업그레이드, 비용은 여전히 내 몫. 그래도 순서는 알아두세요: 컨트롤 플레인 업그레이드 → 노드 풀(한 번에 한 노드씩 drain/cordon, 마이너 버전은 한 단계씩), 무엇이든 하기 전에 ",
+       "프로덕션에서는 매니지드 컨트롤 플레인이 기본값입니다 — 하지만 \"매니지드\"여도 노드 풀, 업그레이드, 비용은 여전히 내 몫이고, 내가 하는 drain이 쿼럼을 무너뜨리지 않게 막아 주는 건 ",
        {
         "t": "b",
         "c": [
-         "etcd 백업"
+         "PodDisruptionBudget"
         ]
        },
-       ", drain이 쿼럼을 무너뜨리지 않도록 PodDisruptionBudget. 노트북용 도구: CI/테스트엔 kind, 엣지엔 k3s, 매니지드가 숨기는 것(그리고 CKA가 시험하는 것)을 배우려면 kubeadm."
+       "입니다. 일에 맞는 도구를 고르고, 클라우드가 대신해 주더라도 업그레이드 순서는 알아두세요."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       {
+        "t": "tr",
+        "c": [
+         { "t": "th", "c": ["도구"] },
+         { "t": "th", "c": ["용도"] },
+         { "t": "th", "c": ["여전히 내 몫인 것"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kind"] }] },
+         { "t": "td", "c": ["CI/테스트용 일회용 클러스터"] },
+         { "t": "td", "c": ["없음 — 다 쓰면 지우면 끝"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["k3s"] }] },
+         { "t": "td", "c": ["엣지, IoT, 홈랩 — 바이너리 하나"] },
+         { "t": "td", "c": ["그것이 도는 머신"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "code", "c": ["kubeadm"] }] },
+         { "t": "td", "c": ["진짜 부트스트랩 — 매니지드가 숨기는 것, 그리고 CKA가 시험하는 것"] },
+         { "t": "td", "c": ["전부: 업그레이드, 인증서, etcd 백업"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": ["GKE / EKS / AKS"] },
+         { "t": "td", "c": ["프로덕션 기본값"] },
+         { "t": "td", "c": ["노드 풀, 업그레이드, 비용"] }
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       { "t": "span", "cls": "cm", "c": ["# 노드 업그레이드 순서 — 한 번에 한 노드, 마이너 버전은 한 단계씩,\n# 그리고 무엇보다 먼저 etcd 스냅샷"] },
+       "\nkubectl drain node-1 --ignore-daemonsets\napt-get install kubeadm=1.31.x-* && kubeadm upgrade node\nsystemctl restart kubelet && kubectl uncordon node-1"
       ]
      },
      "\n"
