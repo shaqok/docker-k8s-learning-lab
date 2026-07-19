@@ -233,8 +233,22 @@ export default function OperatorToolkit() {
       <Rich tag="h2" content={c.title} />
       <Rich tag="p" className="sub" content={c.sub} />
 
-      <Rich content={c.yamlCard} />
-      <Rich content={c.configCard} />
+      <div className="card">
+        <Rich content={c.yamlCard[0].c} />
+        <PracticeLink
+          to="m4"
+          blurb={{ en: 'Write a manifest and apply it in the K8s Lab terminal', ko: 'K8s 실습 터미널에서 매니페스트 작성하고 apply 해 보기' }}
+        />
+      </div>
+
+      <div className="card">
+        <Rich content={c.configCard[0].c} />
+        <PracticeLink
+          to="m11"
+          sub="config"
+          blurb={{ en: 'Mount ConfigMaps and Secrets, break the refs, fix them', ko: 'ConfigMap과 Secret 마운트, 참조 깨뜨리고 고쳐 보기' }}
+        />
+      </div>
       <div className="card">
         {/* probesCard is a single card — render its body here so the widget joins it */}
         <Rich content={c.probesCard[0].c} />
@@ -258,9 +272,32 @@ export default function OperatorToolkit() {
       </div>
 
       <Rich content={c.scaleCard} />
-      <Rich content={c.storageCard} />
-      <Rich content={c.trafficCard} />
-      <Rich content={c.beyondCard} />
+
+      <div className="card">
+        <Rich content={c.storageCard[0].c} />
+        <PracticeLink
+          to="m18"
+          sub="pvc"
+          blurb={{ en: 'Bind a PVC, mount it, prove the data survives the pod', ko: 'PVC 바인딩·마운트, 데이터가 파드보다 오래 사는지 증명하기' }}
+        />
+      </div>
+
+      <div className="card">
+        <Rich content={c.trafficCard[0].c} />
+        <PracticeLink
+          to="m13"
+          sub="ingress"
+          blurb={{ en: 'Route real host/path rules through a simulated Ingress', ko: '시뮬레이션 Ingress로 host/path 라우팅 규칙 돌려보기' }}
+        />
+      </div>
+
+      <div className="card">
+        <Rich content={c.beyondCard[0].c} />
+        <PracticeLink
+          to="m17"
+          blurb={{ en: 'Jobs, CronJobs, init containers and sidecars — hands on', ko: 'Job, CronJob, init 컨테이너, 사이드카 — 직접 실습' }}
+        />
+      </div>
     </>
   );
 }

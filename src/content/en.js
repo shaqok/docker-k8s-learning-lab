@@ -2632,48 +2632,50 @@ export default {
      {
       "t": "p",
       "c": [
+       "Three autoscalers, three different dials — mixing them up is a classic interview stumble. Only one of them adds machines."
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
        {
-        "t": "b",
+        "t": "tr",
         "c": [
-         "HPA"
+         { "t": "th", "c": ["dial"] },
+         { "t": "th", "c": ["what it scales"] },
+         { "t": "th", "c": ["the signal"] },
+         { "t": "th", "c": ["remember"] }
         ]
        },
-       " (Horizontal Pod Autoscaler): more pods when load rises. ",
        {
-        "t": "code",
+        "t": "tr",
         "c": [
-         "desired = ceil(current × usage/target)"
+         { "t": "td", "c": [{ "t": "b", "c": ["HPA"] }] },
+         { "t": "td", "c": ["pod count"] },
+         { "t": "td", "c": ["CPU/memory vs target"] },
+         { "t": "td", "c": [{ "t": "code", "c": ["desired = ceil(current × usage/target)"] }, " — 3 pods at 90% with a 60% target → 5"] }
         ]
        },
-       " — e.g. 3 pods at 90% CPU with a 60% target → 5 pods. ",
        {
-        "t": "b",
+        "t": "tr",
         "c": [
-         "VPA"
+         { "t": "td", "c": [{ "t": "b", "c": ["VPA"] }] },
+         { "t": "td", "c": ["requests/limits of the same pods"] },
+         { "t": "td", "c": ["observed usage over time"] },
+         { "t": "td", "c": ["pods restart to pick up the new size"] }
         ]
        },
-       ": same pods, resized requests. ",
        {
-        "t": "b",
+        "t": "tr",
         "c": [
-         "Cluster Autoscaler"
+         { "t": "td", "c": [{ "t": "b", "c": ["Cluster Autoscaler"] }] },
+         { "t": "td", "c": [{ "t": "i", "c": ["nodes"] }] },
+         { "t": "td", "c": [{ "t": "b", "c": ["Pending"] }, " pods that fit nowhere"] },
+         { "t": "td", "c": ["buys machines to fit them — how GPU node pools scale too"] }
         ]
-       },
-       ": more ",
-       {
-        "t": "i",
-        "c": [
-         "nodes"
-        ]
-       },
-       " — it watches for exactly the ",
-       {
-        "t": "b",
-        "c": [
-         "Pending"
-        ]
-       },
-       " pods you created in the lab and buys machines to fit them (this is how GPU node pools scale too)."
+       }
       ]
      },
      "\n"
@@ -2696,35 +2698,61 @@ export default {
      {
       "t": "p",
       "c": [
-       "A pod asks for storage with a ",
-       {
-        "t": "b",
-        "c": [
-         "PersistentVolumeClaim"
-        ]
-       },
-       " (\"10Gi, fast\") → a ",
+       "Storage separates the ask from the supply — app YAML stays cloud-agnostic while a ",
        {
         "t": "b",
         "c": [
          "StorageClass"
         ]
        },
-       " provisions a real disk (EBS, PD, Ceph…) as a ",
+       " does the vendor-specific work. Four objects, four owners:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
        {
-        "t": "b",
+        "t": "tr",
         "c": [
-         "PersistentVolume"
+         { "t": "th", "c": ["object"] },
+         { "t": "th", "c": ["who creates it"] },
+         { "t": "th", "c": ["what it expresses"] }
         ]
        },
-       " → it's mounted into the pod and ",
        {
-        "t": "b",
+        "t": "tr",
         "c": [
-         "survives pod deletion"
+         { "t": "td", "c": [{ "t": "b", "c": ["PVC"] }] },
+         { "t": "td", "c": ["you, in the app YAML"] },
+         { "t": "td", "c": ["the ask: \"10Gi, fast\""] }
         ]
        },
-       ". Claim/provision separation means app YAML stays cloud-agnostic."
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["StorageClass"] }] },
+         { "t": "td", "c": ["the platform team, once"] },
+         { "t": "td", "c": ["how to provision: EBS, PD, Ceph…"] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["PV"] }] },
+         { "t": "td", "c": ["the provisioner, on demand"] },
+         { "t": "td", "c": ["the actual disk — ", { "t": "b", "c": ["survives pod deletion"] }] }
+        ]
+       },
+       {
+        "t": "tr",
+        "c": [
+         { "t": "td", "c": [{ "t": "b", "c": ["volumeClaimTemplate"] }] },
+         { "t": "td", "c": ["a StatefulSet, per replica"] },
+         { "t": "td", "c": ["one PVC each for ", { "t": "code", "c": ["db-0"] }, ", ", { "t": "code", "c": ["db-1"] }, "…"] }
+        ]
+       }
       ]
      },
      "\n",
