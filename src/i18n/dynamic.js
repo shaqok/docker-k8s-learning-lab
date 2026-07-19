@@ -187,6 +187,20 @@ export const KO_STR=[
  ["Requests or limits exist but not requests == limits everywhere → <b>Burstable</b>. It may burst above its request; under pressure it outlives only BestEffort pods.","requests나 limits가 있지만 모든 곳에서 requests == limits는 아님 → <b>Burstable</b>. request 이상으로 튈 수 있고, 압박이 오면 BestEffort보다만 오래 삽니다."],
  ["requests == limits for CPU and memory → <b>Guaranteed</b>. Evicted last — but the memory limit is a hard wall: exceed it and the container is OOMKilled.","CPU와 메모리 모두 requests == limits → <b>Guaranteed</b>. 가장 늦게 축출되지만, 메모리 limit은 단단한 벽입니다: 넘는 순간 컨테이너는 OOMKilled."],
  ["Only limits set — requests default to limits, so this is still <b>Guaranteed</b>. A favorite exam trap.","limits만 설정 — requests가 limits 값으로 기본 설정되어 여전히 <b>Guaranteed</b>입니다. 시험 단골 함정."],
+ ["All green: 200s everywhere, pod Ready, receiving traffic.","전부 초록불: 모든 곳에서 200, 파드 Ready, 트래픽 수신 중."],
+ ["Readiness failed → the pod left the Service endpoints but was <b>not</b> restarted. Readiness gates traffic; it never restarts anything.","readiness 실패 → 파드가 Service 엔드포인트에서 빠졌지만 재시작되지 <b>않았습니다</b>. readiness는 트래픽만 막을 뿐, 절대 재시작하지 않습니다."],
+ ["Liveness failing… after 3 misses the kubelet kills and restarts the container.","liveness 실패 중… 3번 놓치면 kubelet이 컨테이너를 죽이고 재시작합니다."],
+ ["Restarted — restart count +1 and the app is healthy again. CrashLoopBackOff is exactly this loop happening too fast.","재시작됨 — 재시작 카운트 +1, 앱은 다시 건강해졌습니다. CrashLoopBackOff는 정확히 이 루프가 너무 빨리 반복되는 것입니다."],
+ ["Startup probe holding — liveness and readiness are switched off until it passes, so a slow boot isn't killed halfway.","startup 프로브가 보류 중 — 통과할 때까지 liveness와 readiness가 꺼져 있어, 느린 부팅이 중간에 죽지 않습니다."],
+ ["Startup passed — from here the other two probes take over.","startup 통과 — 여기서부터 나머지 두 프로브가 넘겨받습니다."],
+ ["passed — hands off to the others","통과 — 나머지 프로브에 인계"],
+ ["200 — pod Ready, in Service endpoints","200 — 파드 Ready, Service 엔드포인트에 포함"],
+ ["200 — alive, just not ready","200 — 살아는 있지만 ready가 아님"],
+ ["200 — alive","200 — 살아 있음"],
+ ["503 — pulled from endpoints (no restart!)","503 — 엔드포인트에서 제외 (재시작은 없음!)"],
+ ["timeout ×3 → kubelet restarts the container","timeout ×3 → kubelet이 컨테이너 재시작"],
+ ["holding liveness & readiness off","liveness와 readiness를 보류 중"],
+ ["(waiting for startup probe)","(startup 프로브 대기 중)"],
 ];;
 
 export function tr(lang,h){

@@ -2576,6 +2576,28 @@ export default {
     ]
    }
   ],
+  "probeDemoTitle": "🩺 Try it — break the app, watch each probe react",
+  "probeDemoIntro": [
+   "One app, three probes, three very different consequences. The most misdiagnosed distinction in the drills: ",
+   {
+    "t": "b",
+    "c": [
+     "readiness gates traffic, liveness restarts, startup holds both off"
+    ]
+   },
+   "."
+  ],
+  "probeDemoBtns": [
+   "healthy app",
+   "503 on /ready",
+   "hang /healthz (deadlock)",
+   "slow start (cold JVM)"
+  ],
+  "probeDemoHint0": [
+   "All green. Now break it: try a 503 on /ready and note what does NOT happen."
+  ],
+  "probeRestartsLabel": "restarts",
+  "probeSvcHead": "Service endpoints",
   "qosDemoTitle": "⚖️ Try it — dial in requests & limits",
   "qosDemoIntro": [
    "Pick requests and limits for one container and watch its ",

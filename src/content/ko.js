@@ -2565,6 +2565,28 @@ export default {
     ]
    }
   ],
+  "probeDemoTitle": "🩺 해보기 — 앱을 고장 내고 프로브별 반응 보기",
+  "probeDemoIntro": [
+   "앱 하나, 프로브 셋, 전혀 다른 결과 셋. 드릴에서 가장 많이 오진하는 구분: ",
+   {
+    "t": "b",
+    "c": [
+     "readiness는 트래픽을 막고, liveness는 재시작하고, startup은 둘을 보류시킵니다"
+    ]
+   },
+   "."
+  ],
+  "probeDemoBtns": [
+   "건강한 앱",
+   "/ready가 503",
+   "/healthz 멈춤 (데드락)",
+   "느린 시작 (콜드 JVM)"
+  ],
+  "probeDemoHint0": [
+   "전부 초록불. 이제 고장 내 보세요: /ready 503을 눌러서 무엇이 일어나지 않는지 확인해 보세요."
+  ],
+  "probeRestartsLabel": "재시작",
+  "probeSvcHead": "Service 엔드포인트",
   "qosDemoTitle": "⚖️ 해보기 — requests & limits 조절하기",
   "qosDemoIntro": [
    "컨테이너 하나의 requests와 limits를 골라 ",

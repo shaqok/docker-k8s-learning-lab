@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Rich from '../components/Rich.jsx';
 import Html from '../components/Html.jsx';
 import PracticeLink from '../components/PracticeLink.jsx';
@@ -6,6 +6,123 @@ import { useLang } from '../i18n/LanguageContext.jsx';
 import { content } from '../content/index.js';
 import { tr } from '../i18n/dynamic.js';
 import { qosOf } from '../sims/k8s/engine.js';
+
+const PROBE_NARR = {
+  ok: 'All green: 200s everywhere, pod Ready, receiving traffic.',
+  notready:
+    'Readiness failed → the pod left the Service endpoints but was <b>not</b> restarted. Readiness gates traffic; it never restarts anything.',
+  hung: 'Liveness failing… after 3 misses the kubelet kills and restarts the container.',
+  restarted:
+    'Restarted — restart count +1 and the app is healthy again. CrashLoopBackOff is exactly this loop happening too fast.',
+  starting:
+    "Startup probe holding — liveness and readiness are switched off until it passes, so a slow boot isn't killed halfway.",
+  started: 'Startup passed — from here the other two probes take over.',
+};
+
+// verdict text per probe row for each app state
+const PROBE_ROWS = {
+  ok: {
+    startup: ['✓', 'passed — hands off to the others'],
+    readiness: ['✓', '200 — pod Ready, in Service endpoints'],
+    liveness: ['✓', '200 — alive'],
+  },
+  notready: {
+    startup: ['✓', 'passed — hands off to the others'],
+    readiness: ['✗', '503 — pulled from endpoints (no restart!)'],
+    liveness: ['✓', '200 — alive, just not ready'],
+  },
+  hung: {
+    startup: ['✓', 'passed — hands off to the others'],
+    readiness: ['✗', 'timeout'],
+    liveness: ['✗', 'timeout ×3 → kubelet restarts the container'],
+  },
+  starting: {
+    startup: ['⏳', 'holding liveness & readiness off'],
+    readiness: ['·', '(waiting for startup probe)'],
+    liveness: ['·', '(waiting for startup probe)'],
+  },
+};
+
+/** One app, three probes: readiness gates traffic, liveness restarts, startup holds both. */
+function ProbeDemo({ c, lang }) {
+  const [app, setApp] = useState('ok');
+  const [restarts, setRestarts] = useState(0);
+  const [narr, setNarr] = useState(null);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const states = ['ok', 'notready', 'hung', 'starting'];
+  const set = (next) => {
+    clearTimeout(timerRef.current);
+    setApp(next);
+    setNarr(PROBE_NARR[next]);
+    if (next === 'hung') {
+      timerRef.current = setTimeout(() => {
+        setRestarts((r) => r + 1);
+        setApp('ok');
+        setNarr(PROBE_NARR.restarted);
+      }, 2000);
+    } else if (next === 'starting') {
+      timerRef.current = setTimeout(() => {
+        setApp('ok');
+        setNarr(PROBE_NARR.started);
+      }, 2500);
+    }
+  };
+
+  const ready = app === 'ok';
+  const rows = PROBE_ROWS[app];
+  const mark = { '✓': 'var(--green)', '✗': 'var(--red)', '⏳': 'var(--yellow)', '·': 'var(--muted)' };
+
+  return (
+    <>
+      <Rich tag="h4" style={{ marginTop: 18 }} content={c.probeDemoTitle} />
+      <Rich tag="p" content={c.probeDemoIntro} />
+      <div>
+        {states.map((s, i) => (
+          <button key={s} className={'act' + (app === s ? ' primary' : '')} onClick={() => set(s)}>
+            {c.probeDemoBtns[i]}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+        <div style={{ flex: '2 1 260px', minWidth: 0, background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
+          {['startup', 'readiness', 'liveness'].map((probe) => (
+            <div key={probe} style={{ fontSize: 12, padding: '3px 0', display: 'flex', gap: 8 }}>
+              <code style={{ minWidth: 88 }}>{probe}Probe</code>
+              <span style={{ color: mark[rows[probe][0]] }}>
+                {rows[probe][0]} {tr(lang, rows[probe][1])}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div style={{ flex: '1 1 140px', minWidth: 0, background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>
+          <div style={{ color: 'var(--muted)', marginBottom: 4 }}>{c.probeSvcHead}</div>
+          <div>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: ready ? 'var(--green)' : 'var(--border)',
+                marginRight: 6,
+              }}
+            />
+            <code>web-0</code>
+          </div>
+          <div style={{ marginTop: 6, color: restarts ? 'var(--yellow)' : 'var(--muted)' }}>
+            {c.probeRestartsLabel}: {restarts}
+          </div>
+        </div>
+      </div>
+      <div className="hint" style={{ minHeight: 40 }}>
+        {narr ? <Html tag="span" html={tr(lang, narr)} /> : <Rich tag="span" content={c.probeDemoHint0} />}
+      </div>
+    </>
+  );
+}
 
 const QOS_NARR = {
   BestEffort:
@@ -118,7 +235,16 @@ export default function OperatorToolkit() {
 
       <Rich content={c.yamlCard} />
       <Rich content={c.configCard} />
-      <Rich content={c.probesCard} />
+      <div className="card">
+        {/* probesCard is a single card — render its body here so the widget joins it */}
+        <Rich content={c.probesCard[0].c} />
+        <ProbeDemo c={c} lang={lang} />
+        <PracticeLink
+          to="m11"
+          sub="probes"
+          blurb={{ en: 'Configure real probes and fix a CrashLoopBackOff', ko: '진짜 프로브 설정하고 CrashLoopBackOff 고치기' }}
+        />
+      </div>
 
       <div className="card">
         {/* qosCard is a single card — render its body here so the widget joins it */}
