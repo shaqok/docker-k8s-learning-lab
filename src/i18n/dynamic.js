@@ -201,6 +201,13 @@ export const KO_STR=[
  ["timeout ×3 → kubelet restarts the container","timeout ×3 → kubelet이 컨테이너 재시작"],
  ["holding liveness & readiness off","liveness와 readiness를 보류 중"],
  ["(waiting for startup probe)","(startup 프로브 대기 중)"],
+ /* m7 docker-depth cache demo */
+ ["First build — no cache yet, every layer runs. npm ci alone takes 40s.","첫 빌드 — 아직 캐시가 없어 모든 레이어가 실행됩니다. npm ci 하나만 40초."],
+ ["Nothing changed — every layer CACHED. 0.0s.","바뀐 게 없음 — 모든 레이어 CACHED. 0.0초."],
+ ["One source edit busted the cache at COPY . . — and every layer below it, including the 40s npm ci. You pay 40.5s for every edit.","소스 수정 하나가 COPY . . 에서 캐시를 깨뜨렸습니다 — 그 아래 모든 레이어, 40초짜리 npm ci까지 전부요. 수정할 때마다 40.5초를 냅니다."],
+ ["package.json didn't change, so npm ci stayed CACHED. Only COPY . . re-ran: 0.6s. Same image, ~70× faster feedback.","package.json이 안 바뀌었으니 npm ci는 CACHED. COPY . . 만 다시 실행: 0.6초. 같은 이미지, 피드백은 약 70배 빠름."],
+ ["Dockerfile reordered — new instruction order means new cache keys, so the next build runs everything once. After that, edits are cheap.","Dockerfile 재배치 — 명령 순서가 바뀌면 캐시 키도 새로 생겨 다음 빌드는 한 번 전부 실행됩니다. 그다음부터 수정이 싸집니다."],
+ ["app.js edited — the next build will show which layers survive.","app.js 수정됨 — 다음 빌드에서 어떤 레이어가 살아남는지 보게 됩니다."],
 ];;
 
 export function tr(lang,h){

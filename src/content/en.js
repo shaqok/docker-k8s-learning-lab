@@ -1550,523 +1550,7 @@ export default {
  "m7": {
   "title": "Docker in Depth",
   "sub": "Stage 2: what separates \"I can run a container\" from \"I ship containers\".",
-  "_ncards": 6,
-  "cards": [
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Layer caching — instruction order is a performance feature"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ❌ any code edit re-runs pip install"
-             ]
-            },
-            "\nCOPY . .\nRUN pip install -r requirements.txt"
-           ]
-          },
-          "\n",
-          {
-           "t": "pre",
-           "cls": "code",
-           "c": [
-            {
-             "t": "span",
-             "cls": "cm",
-             "c": [
-              "# ✅ deps layer cached until requirements.txt changes"
-             ]
-            },
-            "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            "Docker reuses a cached layer only if the instruction ",
-            {
-             "t": "i",
-             "c": [
-              "and everything before it"
-             ]
-            },
-            " is unchanged. Put slow, rarely-changing steps (deps) before fast-changing ones (your code). For ML images this is the difference between 4-second and 25-minute rebuilds."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Data — the writable layer dies with the container"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "Anything a container writes to its own filesystem is deleted at ",
-        {
-         "t": "code",
-         "c": [
-          "docker rm"
-         ]
-        },
-        ". Persistent data needs a mount:"
-       ]
-      },
-      "\n",
-      {
-       "t": "table",
-       "cls": "cmp",
-       "c": [
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "th",
-           "c": []
-          },
-          {
-           "t": "th",
-           "c": [
-            "Volume"
-           ]
-          },
-          {
-           "t": "th",
-           "c": [
-            "Bind mount"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Syntax"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v pgdata:/var/lib/postgresql/data"
-             ]
-            }
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "-v ./src:/app/src"
-             ]
-            }
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Lives"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Docker-managed area on the host"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "An exact host folder you chose"
-           ]
-          }
-         ]
-        },
-        "\n",
-        {
-         "t": "tr",
-         "c": [
-          {
-           "t": "td",
-           "c": [
-            "Best for"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Databases, anything production"
-           ]
-          },
-          {
-           "t": "td",
-           "c": [
-            "Live-editing code during development"
-           ]
-          }
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "Same idea reappears in Kubernetes as PersistentVolumes (Stage 4) — pods are as disposable as containers, so state always lives outside them."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Networking — containers find each other by name"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# api can now reach \"db:5432\" — Docker's DNS resolves container names"
-         ]
-        }
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        "On a ",
-        {
-         "t": "b",
-         "c": [
-          "user-defined network"
-         ]
-        },
-        ", containers resolve each other by container name — no IPs in your config. ",
-        {
-         "t": "code",
-         "c": [
-          "-p host:container"
-         ]
-        },
-        " is only for reaching a container ",
-        {
-         "t": "i",
-         "c": [
-          "from outside"
-         ]
-        },
-        " (your browser); container-to-container traffic never needs it."
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "cls": "hint",
-       "c": [
-        "Kubernetes takes this further: every pod gets its own IP, and Services give stable DNS names cluster-wide (",
-        {
-         "t": "code",
-         "c": [
-          "web.default.svc.cluster.local"
-         ]
-        },
-        ")."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Docker Compose — your whole stack in one file"
-       ]
-      },
-      "\n",
-      {
-       "t": "div",
-       "cls": "grid2",
-       "c": [
-        "\n",
-        {
-         "t": "pre",
-         "cls": "code",
-         "c": [
-          {
-           "t": "span",
-           "cls": "cm",
-           "c": [
-            "# compose.yaml — web + cache + db"
-           ]
-          },
-          "\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "services"
-           ]
-          },
-          ":\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "web"
-           ]
-          },
-          ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "cache"
-           ]
-          },
-          ":\n    image: redis:7\n  ",
-          {
-           "t": "span",
-           "cls": "g",
-           "c": [
-            "db"
-           ]
-          },
-          ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
-          {
-           "t": "span",
-           "cls": "k",
-           "c": [
-            "volumes"
-           ]
-          },
-          ":\n  pgdata:"
-         ]
-        },
-        "\n",
-        {
-         "t": "div",
-         "c": [
-          "\n",
-          {
-           "t": "p",
-           "c": [
-            {
-             "t": "code",
-             "c": [
-              "docker compose up -d"
-             ]
-            },
-            " starts everything (networked together, DNS by service name); ",
-            {
-             "t": "code",
-             "c": [
-              "docker compose down"
-             ]
-            },
-            " removes it all. One file in git = reproducible dev environment for the whole team."
-           ]
-          },
-          "\n",
-          {
-           "t": "p",
-           "cls": "hint",
-           "c": [
-            {
-             "t": "b",
-             "c": [
-              "This is your bridge to Kubernetes:"
-             ]
-            },
-            " Compose is declarative desired state for one machine. A K8s manifest is the same idea for a fleet — plus reconciliation. If you can read this file, Stage 4's YAML will feel familiar."
-           ]
-          },
-          "\n"
-         ]
-        },
-        "\n"
-       ]
-      },
-      "\n"
-     ]
-    }
-   ],
-   [
-    {
-     "t": "div",
-     "cls": "card",
-     "c": [
-      "\n",
-      {
-       "t": "h4",
-       "c": [
-        "Registries, tags & digests"
-       ]
-      },
-      "\n",
-      {
-       "t": "pre",
-       "cls": "code",
-       "c": [
-        "docker tag myapp ",
-        {
-         "t": "span",
-         "cls": "g",
-         "c": [
-          "ghcr.io/daniel/myapp:1.4.2"
-         ]
-        },
-        "   ",
-        {
-         "t": "span",
-         "cls": "cm",
-         "c": [
-          "# registry/namespace/repo:tag"
-         ]
-        },
-        "\ndocker push ghcr.io/daniel/myapp:1.4.2"
-       ]
-      },
-      "\n",
-      {
-       "t": "p",
-       "c": [
-        {
-         "t": "code",
-         "c": [
-          ":latest"
-         ]
-        },
-        " is just the default tag name — it is ",
-        {
-         "t": "b",
-         "c": [
-          "not"
-         ]
-        },
-        " automatically the newest, and it ",
-        {
-         "t": "i",
-         "c": [
-          "moves"
-         ]
-        },
-        ": the same tag can point to different bytes tomorrow. Production systems pin versions (",
-        {
-         "t": "code",
-         "c": [
-          ":1.4.2"
-         ]
-        },
-        ") or immutable digests (",
-        {
-         "t": "code",
-         "c": [
-          "@sha256:…"
-         ]
-        },
-        "). Kubernetes pulls by tag too — a moving tag plus ",
-        {
-         "t": "code",
-         "c": [
-          "imagePullPolicy"
-         ]
-        },
-        " confusion is a classic outage."
-       ]
-      },
-      "\n"
-     ]
-    }
-   ]
-  ],
+  "msTitle": "Multi-stage builds — ship the app, not the toolchain",
   "msPre": [
    {
     "t": "pre",
@@ -2124,7 +1608,533 @@ export default {
    }
   ],
   "msHint": "Only the last stage becomes the image. Build tools, source code, and caches stay behind. Smaller image = faster pulls, faster pod starts, smaller attack surface.",
-  "msTitle": "Multi-stage builds — ship the app, not the toolchain"
+  "cacheDemoTitle": "⚡ Try it — feel the cache bust",
+  "cacheDemoIntro": [
+   "Two Dockerfiles, same app. Edit a source file, rebuild, and watch where the cache breaks — then flip the order and rebuild the same edit."
+  ],
+  "cacheDemoBtns": [
+   "✎ edit app.js",
+   "▶ docker build"
+  ],
+  "cacheDemoOrder": "deps-first order (COPY package.json before npm ci)",
+  "cacheDemoHint0": [
+   "Build once, edit app.js, build again — then flip the order and repeat the same edit."
+  ],
+  "cacheTimeLabel": "build time",
+  "cacheCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Layer caching — instruction order is a performance feature"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ❌ any code edit re-runs pip install"
+            ]
+           },
+           "\nCOPY . .\nRUN pip install -r requirements.txt"
+          ]
+         },
+         "\n",
+         {
+          "t": "pre",
+          "cls": "code",
+          "c": [
+           {
+            "t": "span",
+            "cls": "cm",
+            "c": [
+             "# ✅ deps layer cached until requirements.txt changes"
+            ]
+           },
+           "\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . ."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           "Docker reuses a cached layer only if the instruction ",
+           {
+            "t": "i",
+            "c": [
+             "and everything before it"
+            ]
+           },
+           " is unchanged. Put slow, rarely-changing steps (deps) before fast-changing ones (your code). For ML images this is the difference between 4-second and 25-minute rebuilds."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "dataCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Data — the writable layer dies with the container"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "Anything a container writes to its own filesystem is deleted at ",
+       {
+        "t": "code",
+        "c": [
+         "docker rm"
+        ]
+       },
+       ". Persistent data needs a mount:"
+      ]
+     },
+     "\n",
+     {
+      "t": "table",
+      "cls": "cmp",
+      "c": [
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "th",
+          "c": []
+         },
+         {
+          "t": "th",
+          "c": [
+           "Volume"
+          ]
+         },
+         {
+          "t": "th",
+          "c": [
+           "Bind mount"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Syntax"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v pgdata:/var/lib/postgresql/data"
+            ]
+           }
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "-v ./src:/app/src"
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Lives"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Docker-managed area on the host"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "An exact host folder you chose"
+          ]
+         }
+        ]
+       },
+       "\n",
+       {
+        "t": "tr",
+        "c": [
+         {
+          "t": "td",
+          "c": [
+           "Best for"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Databases, anything production"
+          ]
+         },
+         {
+          "t": "td",
+          "c": [
+           "Live-editing code during development"
+          ]
+         }
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "Same idea reappears in Kubernetes as PersistentVolumes (Stage 4) — pods are as disposable as containers, so state always lives outside them."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "netCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Networking — containers find each other by name"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker network create mynet\ndocker run -d --name db  --network mynet postgres\ndocker run -d --name api --network mynet myapp   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# api can now reach \"db:5432\" — Docker's DNS resolves container names"
+        ]
+       }
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       "On a ",
+       {
+        "t": "b",
+        "c": [
+         "user-defined network"
+        ]
+       },
+       ", containers resolve each other by container name — no IPs in your config. ",
+       {
+        "t": "code",
+        "c": [
+         "-p host:container"
+        ]
+       },
+       " is only for reaching a container ",
+       {
+        "t": "i",
+        "c": [
+         "from outside"
+        ]
+       },
+       " (your browser); container-to-container traffic never needs it."
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "cls": "hint",
+      "c": [
+       "Kubernetes takes this further: every pod gets its own IP, and Services give stable DNS names cluster-wide (",
+       {
+        "t": "code",
+        "c": [
+         "web.default.svc.cluster.local"
+        ]
+       },
+       ")."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "composeCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Docker Compose — your whole stack in one file"
+      ]
+     },
+     "\n",
+     {
+      "t": "div",
+      "cls": "grid2",
+      "c": [
+       "\n",
+       {
+        "t": "pre",
+        "cls": "code",
+        "c": [
+         {
+          "t": "span",
+          "cls": "cm",
+          "c": [
+           "# compose.yaml — web + cache + db"
+          ]
+         },
+         "\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "services"
+          ]
+         },
+         ":\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "web"
+          ]
+         },
+         ":\n    build: .\n    ports: [\"8080:80\"]\n    depends_on: [db, cache]\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "cache"
+          ]
+         },
+         ":\n    image: redis:7\n  ",
+         {
+          "t": "span",
+          "cls": "g",
+          "c": [
+           "db"
+          ]
+         },
+         ":\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n",
+         {
+          "t": "span",
+          "cls": "k",
+          "c": [
+           "volumes"
+          ]
+         },
+         ":\n  pgdata:"
+        ]
+       },
+       "\n",
+       {
+        "t": "div",
+        "c": [
+         "\n",
+         {
+          "t": "p",
+          "c": [
+           {
+            "t": "code",
+            "c": [
+             "docker compose up -d"
+            ]
+           },
+           " starts everything (networked together, DNS by service name); ",
+           {
+            "t": "code",
+            "c": [
+             "docker compose down"
+            ]
+           },
+           " removes it all. One file in git = reproducible dev environment for the whole team."
+          ]
+         },
+         "\n",
+         {
+          "t": "p",
+          "cls": "hint",
+          "c": [
+           {
+            "t": "b",
+            "c": [
+             "This is your bridge to Kubernetes:"
+            ]
+           },
+           " Compose is declarative desired state for one machine. A K8s manifest is the same idea for a fleet — plus reconciliation. If you can read this file, Stage 4's YAML will feel familiar."
+          ]
+         },
+         "\n"
+        ]
+       },
+       "\n"
+      ]
+     },
+     "\n"
+    ]
+   }
+  ],
+  "registryCard": [
+   {
+    "t": "div",
+    "cls": "card",
+    "c": [
+     "\n",
+     {
+      "t": "h4",
+      "c": [
+       "Registries, tags & digests"
+      ]
+     },
+     "\n",
+     {
+      "t": "pre",
+      "cls": "code",
+      "c": [
+       "docker tag myapp ",
+       {
+        "t": "span",
+        "cls": "g",
+        "c": [
+         "ghcr.io/daniel/myapp:1.4.2"
+        ]
+       },
+       "   ",
+       {
+        "t": "span",
+        "cls": "cm",
+        "c": [
+         "# registry/namespace/repo:tag"
+        ]
+       },
+       "\ndocker push ghcr.io/daniel/myapp:1.4.2"
+      ]
+     },
+     "\n",
+     {
+      "t": "p",
+      "c": [
+       {
+        "t": "code",
+        "c": [
+         ":latest"
+        ]
+       },
+       " is just the default tag name — it is ",
+       {
+        "t": "b",
+        "c": [
+         "not"
+        ]
+       },
+       " automatically the newest, and it ",
+       {
+        "t": "i",
+        "c": [
+         "moves"
+        ]
+       },
+       ": the same tag can point to different bytes tomorrow. Production systems pin versions (",
+       {
+        "t": "code",
+        "c": [
+         ":1.4.2"
+        ]
+       },
+       ") or immutable digests (",
+       {
+        "t": "code",
+        "c": [
+         "@sha256:…"
+        ]
+       },
+       "). Kubernetes pulls by tag too — a moving tag plus ",
+       {
+        "t": "code",
+        "c": [
+         "imagePullPolicy"
+        ]
+       },
+       " confusion is a classic outage."
+      ]
+     },
+     "\n"
+    ]
+   }
+  ]
  },
  "m8": {
   "title": "Kubernetes Operator Toolkit",
