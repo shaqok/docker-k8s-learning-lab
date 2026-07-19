@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Html from '../components/Html.jsx';
 import Rich from '../components/Rich.jsx';
+import PracticeLink from '../components/PracticeLink.jsx';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { tr } from '../i18n/dynamic.js';
 import { content } from '../content/index.js';
@@ -161,9 +162,18 @@ export default function GpuModule() {
         {/* dpIntro is a single card — render its body inside this card wrapper */}
         <Rich content={c.dpIntro[0].c} />
         <GpuScheduler c={c} lang={lang} />
+        <PracticeLink
+          to="m2"
+          blurb={{ en: 'Try docker run --gpus all in the lab terminal', ko: '실습 터미널에서 docker run --gpus all 직접 실행해 보기' }}
+        />
       </div>
       <MigCard c={c} lang={lang} />
       <Rich content={c.expert} />
+      <PracticeLink
+        to="m12"
+        sub="sched"
+        blurb={{ en: 'Taints, tolerations and bin-packing — the CKA scheduler drill', ko: '테인트·톨러레이션·빈패킹 — CKA 스케줄러 드릴' }}
+      />
     </>
   );
 }

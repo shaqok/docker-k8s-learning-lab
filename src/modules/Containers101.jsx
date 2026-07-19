@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Html from '../components/Html.jsx';
 import Rich from '../components/Rich.jsx';
+import PracticeLink from '../components/PracticeLink.jsx';
 import { useLang } from '../i18n/LanguageContext.jsx';
 import { tr } from '../i18n/dynamic.js';
 import { content } from '../content/index.js';
@@ -119,7 +120,16 @@ export default function Containers101() {
       <Rich content={c.vm} />
       <LayersDemo c={c} lang={lang} />
       <LifecycleDemo c={c} lang={lang} />
+      <PracticeLink
+        to="m2"
+        blurb={{ en: 'Run this exact lifecycle yourself in a simulated engine', ko: '방금 본 생명주기를 시뮬레이션 엔진에서 직접 돌려보기' }}
+      />
       <Rich content={c.vocab} />
+      <PracticeLink
+        to="m16"
+        sub="build"
+        blurb={{ en: 'Layers become build speed — reorder a Dockerfile and see', ko: '레이어는 곧 빌드 속도 — Dockerfile을 재배치하며 확인하기' }}
+      />
     </>
   );
 }
